@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 32" fill="none">
+  <g stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M24 4 C22 6, 18 12, 14 18 C12 22, 10 25, 8 28" />
+    <path d="M24 4 C26 6, 26 8, 24 10 C22 12, 18 14, 14 18" />
+    <path d="M8 28 C7 27, 6 26, 8 24 C10 22, 12 20, 14 18" />
+  </g>
+  <text x="40" y="23" fill="currentColor" font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-size="20" font-weight="400">scriva</text>
+</svg>
