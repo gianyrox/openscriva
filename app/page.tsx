@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import posthog from "posthog-js";
 import {
   Brain,
   GitBranch,
@@ -15,15 +16,13 @@ import {
   Star,
   ChevronDown,
   ArrowRight,
-  Check,
-  Copy,
   Menu,
   X,
 } from "lucide-react";
 
 const GITHUB_URL = "https://github.com/gianyrox/openscriva";
 const GITHUB_API_URL = "https://api.github.com/repos/gianyrox/openscriva";
-const SHARE_TEXT = "I just joined the beta for scriva \u2014 an open-source, AI-native book writing studio. Check it out: https://openscriva.com";
+
 
 const FAQ_ITEMS = [
   {
@@ -251,10 +250,7 @@ export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [waitlistPosition, setWaitlistPosition] = useState(0);
   const [submitError, setSubmitError] = useState("");
-  const [copied, setCopied] = useState(false);
   const [stars, setStars] = useState<number | null>(null);
   const emailRef = useRef<HTMLInputElement>(null);
 
@@ -283,40 +279,20 @@ export default function Home() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!email.trim() || submitting) return;
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed || submitting) return;
 
     setSubmitting(true);
     setSubmitError("");
 
     try {
-      const res = await fetch("/api/waitlist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setSubmitError(data.error || "Something went wrong.");
-        return;
-      }
-
-      setSubmitted(true);
-      setWaitlistPosition(data.position);
+      posthog.identify(trimmed, { email: trimmed });
+      posthog.capture("landing_signup", { email: trimmed });
+      window.location.href = "/setup";
     } catch {
-      setSubmitError("Network error. Try again.");
-    } finally {
+      setSubmitError("Something went wrong. Try again.");
       setSubmitting(false);
     }
-  }
-
-  function handleCopyLink() {
-    navigator.clipboard.writeText("https://openscriva.com");
-    setCopied(true);
-    setTimeout(function resetCopy() {
-      setCopied(false);
-    }, 2000);
   }
 
   const sectionPadding = "80px 24px";
@@ -406,7 +382,7 @@ export default function Home() {
             })}
             <GitHubStarButton stars={stars} />
             <a
-              href="#waitlist"
+              href="#get-started"
               style={{
                 fontFamily: "var(--font-inter), system-ui, sans-serif",
                 fontSize: 13,
@@ -490,7 +466,7 @@ export default function Home() {
           })}
           <GitHubStarButton stars={stars} />
           <a
-            href="#waitlist"
+            href="#get-started"
             onClick={function closeMenu() {
               setMobileMenuOpen(false);
             }}
@@ -561,7 +537,7 @@ export default function Home() {
           }}
         >
           <a
-            href="#waitlist"
+            href="#get-started"
             style={{
               fontFamily: "var(--font-inter), system-ui, sans-serif",
               fontSize: 16,
@@ -1197,7 +1173,7 @@ export default function Home() {
 
       {/* ===== EMAIL CAPTURE ===== */}
       <section
-        id="waitlist"
+        id="get-started"
         style={{
           padding: sectionPadding,
           maxWidth: 520,
@@ -1214,7 +1190,7 @@ export default function Home() {
             marginBottom: 12,
           }}
         >
-          Join the beta.
+          Start writing.
         </h2>
         <p
           style={{
@@ -1224,248 +1200,95 @@ export default function Home() {
             marginBottom: 32,
           }}
         >
-          One email when it&apos;s ready. We respect your focus.
+          Enter your email and set up your keys. You&apos;ll be writing in under a minute.
         </p>
 
-        {!submitted ? (
-          <>
-            <form
-              onSubmit={handleSubmit}
-              style={{
-                display: "flex",
-                gap: 12,
-                maxWidth: 440,
-                margin: "0 auto",
-                flexWrap: "wrap",
-                justifyContent: "center",
-              }}
-            >
-              <input
-                ref={emailRef}
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={function handleChange(e) {
-                  setEmail(e.target.value);
-                }}
-                required
-                style={{
-                  flex: 1,
-                  minWidth: 220,
-                  padding: "12px 16px",
-                  fontFamily: "var(--font-inter), system-ui, sans-serif",
-                  fontSize: 15,
-                  color: "var(--color-text)",
-                  backgroundColor: "var(--color-surface)",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: 8,
-                  outline: "none",
-                  transition: "border-color 150ms ease",
-                }}
-                onFocus={function focusOn(e) {
-                  e.currentTarget.style.borderColor = "var(--color-accent)";
-                }}
-                onBlur={function focusOff(e) {
-                  e.currentTarget.style.borderColor = "var(--color-border)";
-                }}
-              />
-              <button
-                type="submit"
-                disabled={submitting}
-                style={{
-                  padding: "12px 28px",
-                  fontFamily: "var(--font-inter), system-ui, sans-serif",
-                  fontSize: 15,
-                  fontWeight: 500,
-                  color: "#ffffff",
-                  backgroundColor: submitting
-                    ? "var(--color-text-muted)"
-                    : "var(--color-accent)",
-                  border: "none",
-                  borderRadius: 8,
-                  cursor: submitting ? "not-allowed" : "pointer",
-                  transition: "background-color 150ms ease",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                }}
-                onMouseEnter={function hoverOn(e) {
-                  if (!submitting) {
-                    e.currentTarget.style.backgroundColor = "var(--color-accent-hover)";
-                  }
-                }}
-                onMouseLeave={function hoverOff(e) {
-                  if (!submitting) {
-                    e.currentTarget.style.backgroundColor = "var(--color-accent)";
-                  }
-                }}
-              >
-                {submitting ? "Joining..." : "Join"}
-                {!submitting && <ArrowRight size={16} />}
-              </button>
-            </form>
-            {submitError && (
-              <p
-                style={{
-                  fontFamily: "var(--font-inter), system-ui, sans-serif",
-                  fontSize: 13,
-                  color: "var(--color-error)",
-                  marginTop: 12,
-                }}
-              >
-                {submitError}
-              </p>
-            )}
-          </>
-        ) : (
-          <div
+        <form
+          onSubmit={handleSubmit}
+          style={{
+            display: "flex",
+            gap: 12,
+            maxWidth: 440,
+            margin: "0 auto",
+            flexWrap: "wrap",
+            justifyContent: "center",
+          }}
+        >
+          <input
+            ref={emailRef}
+            type="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={function handleChange(e) {
+              setEmail(e.target.value);
+            }}
+            required
             style={{
+              flex: 1,
+              minWidth: 220,
+              padding: "12px 16px",
+              fontFamily: "var(--font-inter), system-ui, sans-serif",
+              fontSize: 15,
+              color: "var(--color-text)",
               backgroundColor: "var(--color-surface)",
               border: "1px solid var(--color-border)",
-              borderRadius: 12,
-              padding: 32,
-              maxWidth: 440,
-              margin: "0 auto",
-              animation: "scriva-fade-in 200ms ease",
+              borderRadius: 8,
+              outline: "none",
+              transition: "border-color 150ms ease",
+            }}
+            onFocus={function focusOn(e) {
+              e.currentTarget.style.borderColor = "var(--color-accent)";
+            }}
+            onBlur={function focusOff(e) {
+              e.currentTarget.style.borderColor = "var(--color-border)";
+            }}
+          />
+          <button
+            type="submit"
+            disabled={submitting}
+            style={{
+              padding: "12px 28px",
+              fontFamily: "var(--font-inter), system-ui, sans-serif",
+              fontSize: 15,
+              fontWeight: 500,
+              color: "#ffffff",
+              backgroundColor: submitting
+                ? "var(--color-text-muted)"
+                : "var(--color-accent)",
+              border: "none",
+              borderRadius: 8,
+              cursor: submitting ? "not-allowed" : "pointer",
+              transition: "background-color 150ms ease",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+            onMouseEnter={function hoverOn(e) {
+              if (!submitting) {
+                e.currentTarget.style.backgroundColor = "var(--color-accent-hover)";
+              }
+            }}
+            onMouseLeave={function hoverOff(e) {
+              if (!submitting) {
+                e.currentTarget.style.backgroundColor = "var(--color-accent)";
+              }
             }}
           >
-            <div
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: "50%",
-                backgroundColor: "var(--color-success)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                margin: "0 auto 16px",
-              }}
-            >
-              <Check size={24} style={{ color: "#ffffff" }} />
-            </div>
-            <p
-              style={{
-                fontFamily: "var(--font-inter), system-ui, sans-serif",
-                fontSize: 18,
-                fontWeight: 600,
-                color: "var(--color-text)",
-                margin: "0 0 4px 0",
-              }}
-            >
-              You&apos;re in.
-            </p>
-            <p
-              style={{
-                fontFamily: "var(--font-inter), system-ui, sans-serif",
-                fontSize: 14,
-                color: "var(--color-text-muted)",
-                margin: "0 0 24px 0",
-              }}
-            >
-              Position #{waitlistPosition} on the list.
-            </p>
-            <p
-              style={{
-                fontFamily: "var(--font-inter), system-ui, sans-serif",
-                fontSize: 13,
-                fontWeight: 500,
-                color: "var(--color-text)",
-                margin: "0 0 12px 0",
-              }}
-            >
-              Tell a writer friend:
-            </p>
-            <div
-              style={{
-                display: "flex",
-                gap: 8,
-                justifyContent: "center",
-                flexWrap: "wrap",
-              }}
-            >
-              <a
-                href={
-                  "https://twitter.com/intent/tweet?text=" +
-                  encodeURIComponent(SHARE_TEXT)
-                }
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  fontFamily: "var(--font-inter), system-ui, sans-serif",
-                  fontSize: 13,
-                  color: "var(--color-text)",
-                  backgroundColor: "var(--color-bg)",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: 6,
-                  padding: "8px 16px",
-                  textDecoration: "none",
-                  transition: "border-color 150ms ease",
-                }}
-                onMouseEnter={function hoverOn(e) {
-                  e.currentTarget.style.borderColor = "var(--color-accent)";
-                }}
-                onMouseLeave={function hoverOff(e) {
-                  e.currentTarget.style.borderColor = "var(--color-border)";
-                }}
-              >
-                Twitter / X
-              </a>
-              <a
-                href={
-                  "https://bsky.app/intent/compose?text=" +
-                  encodeURIComponent(SHARE_TEXT)
-                }
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  fontFamily: "var(--font-inter), system-ui, sans-serif",
-                  fontSize: 13,
-                  color: "var(--color-text)",
-                  backgroundColor: "var(--color-bg)",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: 6,
-                  padding: "8px 16px",
-                  textDecoration: "none",
-                  transition: "border-color 150ms ease",
-                }}
-                onMouseEnter={function hoverOn(e) {
-                  e.currentTarget.style.borderColor = "var(--color-accent)";
-                }}
-                onMouseLeave={function hoverOff(e) {
-                  e.currentTarget.style.borderColor = "var(--color-border)";
-                }}
-              >
-                Bluesky
-              </a>
-              <button
-                type="button"
-                onClick={handleCopyLink}
-                style={{
-                  fontFamily: "var(--font-inter), system-ui, sans-serif",
-                  fontSize: 13,
-                  color: "var(--color-text)",
-                  backgroundColor: "var(--color-bg)",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: 6,
-                  padding: "8px 16px",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  transition: "border-color 150ms ease",
-                }}
-                onMouseEnter={function hoverOn(e) {
-                  e.currentTarget.style.borderColor = "var(--color-accent)";
-                }}
-                onMouseLeave={function hoverOff(e) {
-                  e.currentTarget.style.borderColor = "var(--color-border)";
-                }}
-              >
-                <Copy size={14} />
-                {copied ? "Copied!" : "Copy link"}
-              </button>
-            </div>
-          </div>
+            {submitting ? "Setting up..." : "Get started"}
+            {!submitting && <ArrowRight size={16} />}
+          </button>
+        </form>
+        {submitError && (
+          <p
+            style={{
+              fontFamily: "var(--font-inter), system-ui, sans-serif",
+              fontSize: 13,
+              color: "var(--color-error)",
+              marginTop: 12,
+            }}
+          >
+            {submitError}
+          </p>
         )}
 
         <div

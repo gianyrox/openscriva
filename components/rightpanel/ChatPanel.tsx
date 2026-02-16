@@ -193,11 +193,36 @@ export default function ChatPanel() {
         if (inputRef.current) inputRef.current.focus();
       }
     }
+    function allNotesHandler() {
+      try {
+        var padIndexRaw = localStorage.getItem("scriva:notepads:" + repoKey);
+        var pads = padIndexRaw ? JSON.parse(padIndexRaw) : [];
+        var activePadId = pads.length > 0 ? pads[0].id : "";
+        if (!activePadId) return;
+        var notesRaw = localStorage.getItem("scriva:notes:" + repoKey + ":" + activePadId);
+        var notes = notesRaw ? JSON.parse(notesRaw) : [];
+        if (notes.length === 0) return;
+        var lines: string[] = [];
+        for (var i = 0; i < notes.length; i++) {
+          var n = notes[i];
+          if (n.quote) lines.push("> " + n.quote.substring(0, 200));
+          if (n.text) lines.push(n.text);
+          if (i < notes.length - 1) lines.push("");
+        }
+        var fullText = lines.join("\n").trim();
+        if (fullText) {
+          setInput(function prev(p) { return p ? p + "\n\n" + fullText : fullText; });
+          if (inputRef.current) inputRef.current.focus();
+        }
+      } catch {}
+    }
     window.addEventListener("scriva:add-note-to-chat", handler);
+    window.addEventListener("scriva:add-all-notes-to-chat", allNotesHandler);
     return function cleanup() {
       window.removeEventListener("scriva:add-note-to-chat", handler);
+      window.removeEventListener("scriva:add-all-notes-to-chat", allNotesHandler);
     };
-  }, []);
+  }, [repoKey]);
 
   useEffect(function closeDropdowns() {
     function handler(e: MouseEvent) {
@@ -860,77 +885,12 @@ export default function ChatPanel() {
         style={{
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
+          justifyContent: "flex-end",
           padding: "6px 12px",
           borderBottom: "1px solid var(--color-border)",
           flexShrink: 0,
         }}
       >
-        <div ref={modeRef} style={{ position: "relative" }}>
-          <button
-            onClick={function toggleMode() { setModeOpen(!modeOpen); }}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "4px 8px",
-              fontSize: 12,
-              fontFamily: "inherit",
-              fontWeight: 600,
-              border: "1px solid var(--color-border)",
-              borderRadius: 6,
-              backgroundColor: "transparent",
-              color: "var(--color-text)",
-              cursor: "pointer",
-            }}
-          >
-            <ActiveIcon size={13} />
-            {activeMeta.label}
-            <ChevronUp size={11} style={{ transform: modeOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 150ms" }} />
-          </button>
-          {modeOpen && (
-            <div
-              style={{
-                position: "absolute",
-                bottom: "100%",
-                left: 0,
-                marginBottom: 4,
-                minWidth: 200,
-                backgroundColor: "var(--color-surface)",
-                border: "1px solid var(--color-border)",
-                borderRadius: 8,
-                boxShadow: "0 -4px 16px rgba(0,0,0,0.12)",
-                padding: 4,
-                zIndex: 50,
-              }}
-            >
-              {MODE_META.map(function renderModeOption(m) {
-                var Icon = m.icon;
-                var isActive = mode === m.key;
-                return (
-                  <button
-                    key={m.key}
-                    onClick={function selectMode() { handleModeChange(m.key); }}
-                    onMouseEnter={function hover(e) { e.currentTarget.style.backgroundColor = "var(--color-surface-hover)"; }}
-                    onMouseLeave={function unhover(e) { e.currentTarget.style.backgroundColor = "transparent"; }}
-                    style={{
-                      ...dropdownItemStyle,
-                      fontWeight: isActive ? 600 : 400,
-                      color: isActive ? "var(--color-accent)" : "var(--color-text)",
-                    }}
-                  >
-                    <Icon size={14} />
-                    <div>
-                      <div style={{ fontSize: 12 }}>{m.label}</div>
-                      <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginTop: 1 }}>{m.desc}</div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
         <div style={{ display: "flex", gap: 4 }}>
           <button
             onClick={handleNewConversation}
@@ -1310,6 +1270,70 @@ export default function ChatPanel() {
           }}
         >
           <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+            <div ref={modeRef} style={{ position: "relative" }}>
+              <button
+                onClick={function toggleMode() { setModeOpen(!modeOpen); }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 3,
+                  padding: "2px 8px",
+                  fontSize: 11,
+                  fontFamily: "inherit",
+                  fontWeight: 600,
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 4,
+                  backgroundColor: "transparent",
+                  color: "var(--color-text)",
+                  cursor: "pointer",
+                }}
+              >
+                <ActiveIcon size={10} />
+                {activeMeta.label}
+                <ChevronUp size={9} style={{ transform: modeOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 150ms" }} />
+              </button>
+              {modeOpen && (
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: "100%",
+                    left: 0,
+                    marginBottom: 4,
+                    minWidth: 200,
+                    backgroundColor: "var(--color-surface)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: 8,
+                    boxShadow: "0 -4px 16px rgba(0,0,0,0.12)",
+                    padding: 4,
+                    zIndex: 50,
+                  }}
+                >
+                  {MODE_META.map(function renderModeOption(m) {
+                    var Icon = m.icon;
+                    var isActive = mode === m.key;
+                    return (
+                      <button
+                        key={m.key}
+                        onClick={function selectMode() { handleModeChange(m.key); }}
+                        onMouseEnter={function hover(e) { e.currentTarget.style.backgroundColor = "var(--color-surface-hover)"; }}
+                        onMouseLeave={function unhover(e) { e.currentTarget.style.backgroundColor = "transparent"; }}
+                        style={{
+                          ...dropdownItemStyle,
+                          fontWeight: isActive ? 600 : 400,
+                          color: isActive ? "var(--color-accent)" : "var(--color-text)",
+                        }}
+                      >
+                        <Icon size={14} />
+                        <div>
+                          <div style={{ fontSize: 12 }}>{m.label}</div>
+                          <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginTop: 1 }}>{m.desc}</div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
             <div ref={modelRef} style={{ position: "relative" }}>
               <button
                 onClick={function toggleModel() { setModelOpen(!modelOpen); }}
@@ -1364,108 +1388,6 @@ export default function ChatPanel() {
                       >
                         {m.label}
                       </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-            <div ref={convRef} style={{ position: "relative" }}>
-              <button
-                onClick={function toggleConvList() { setConvListOpen(!convListOpen); }}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 3,
-                  padding: "2px 8px",
-                  fontSize: 11,
-                  fontFamily: "inherit",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: 4,
-                  backgroundColor: "transparent",
-                  color: "var(--color-text)",
-                  cursor: "pointer",
-                  maxWidth: 140,
-                  overflow: "hidden",
-                }}
-              >
-                <MessageSquare size={9} style={{ flexShrink: 0 }} />
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {activeConv?.name || "New Chat"}
-                </span>
-                <ChevronUp size={9} style={{ flexShrink: 0, transform: convListOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 150ms" }} />
-              </button>
-              {convListOpen && (
-                <div
-                  style={{
-                    position: "absolute",
-                    bottom: "100%",
-                    left: 0,
-                    marginBottom: 4,
-                    minWidth: 220,
-                    backgroundColor: "var(--color-surface)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 8,
-                    boxShadow: "0 -4px 16px rgba(0,0,0,0.12)",
-                    padding: 4,
-                    zIndex: 50,
-                    maxHeight: 240,
-                    overflowY: "auto",
-                  }}
-                >
-                  {conversations.map(function renderConv(conv) {
-                    var isActive = conv.id === activeConvId;
-                    return (
-                      <div
-                        key={conv.id}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                          borderRadius: 4,
-                        }}
-                        onMouseEnter={function hover(e) { e.currentTarget.style.backgroundColor = "var(--color-surface-hover)"; }}
-                        onMouseLeave={function unhover(e) { e.currentTarget.style.backgroundColor = "transparent"; }}
-                      >
-                        <button
-                          onClick={function switchConv() { handleSwitchConversation(conv.id); }}
-                          style={{
-                            ...dropdownItemStyle,
-                            flex: 1,
-                            fontWeight: isActive ? 600 : 400,
-                            color: isActive ? "var(--color-accent)" : "var(--color-text)",
-                          }}
-                        >
-                          <div style={{ flex: 1, overflow: "hidden" }}>
-                            <div style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{conv.name}</div>
-                            {conv.lastMessage && (
-                              <div style={{ fontSize: 10, color: "var(--color-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 1 }}>
-                                {conv.lastMessage}
-                              </div>
-                            )}
-                          </div>
-                        </button>
-                        {conversations.length > 1 && (
-                          <button
-                            onClick={function del(e) { e.stopPropagation(); handleDeleteConversation(conv.id); }}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              width: 20,
-                              height: 20,
-                              border: "none",
-                              background: "transparent",
-                              color: "var(--color-text-muted)",
-                              cursor: "pointer",
-                              borderRadius: 3,
-                              flexShrink: 0,
-                              marginRight: 4,
-                            }}
-                          >
-                            <X size={11} />
-                          </button>
-                        )}
-                      </div>
                     );
                   })}
                 </div>

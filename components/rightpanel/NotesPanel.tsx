@@ -93,9 +93,6 @@ export default function NotesPanel() {
   var repoKey = useAppStore(function (s) {
     return s.editor.currentBook;
   }) || "default";
-  var setRightTab = useAppStore(function (s) {
-    return s.setRightTab;
-  });
 
   var [notepads, setNotepads] = useState<Notepad[]>([]);
   var [activepadId, setActivepadId] = useState<string>("");
@@ -245,7 +242,6 @@ export default function NotesPanel() {
     if (note.text) text += note.text;
     if (!text.trim()) return;
     window.dispatchEvent(new CustomEvent("scriva:add-note-to-chat", { detail: { text: text.trim() } }));
-    setRightTab("chat" as any);
     showToast("Added to chat");
   }
 
@@ -284,117 +280,77 @@ export default function NotesPanel() {
       }}
     >
       <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "8px 12px",
-          borderBottom: "1px solid var(--color-border)",
-          flexShrink: 0,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <StickyNote size={14} style={{ color: "var(--color-accent)" }} />
-          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text)" }}>Notes</span>
-          <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>{notes.length}</span>
-        </div>
-        <div style={{ display: "flex", gap: 2 }}>
-          <button title="New note" onClick={handleAddBlank} style={actionBtnStyle}>
-            <Plus size={14} />
-          </button>
-          <button
-            title="Copy all notes"
-            onClick={handleExport}
-            disabled={notes.length === 0}
-            style={actionBtnStyle}
-          >
-            <Clipboard size={14} />
-          </button>
-        </div>
-      </div>
-
-      <div
         ref={padRef}
         style={{
           display: "flex",
           alignItems: "center",
-          padding: "4px 12px",
+          justifyContent: "space-between",
+          padding: "6px 12px",
           borderBottom: "1px solid var(--color-border)",
           flexShrink: 0,
           position: "relative",
-          gap: 4,
         }}
       >
-        <StickyNote size={11} style={{ color: "var(--color-text-muted)", flexShrink: 0 }} />
-        {editingName ? (
-          <input
-            value={editName}
-            onChange={function handleChange(e) { setEditName(e.target.value); }}
-            onBlur={handleRenameNotepad}
-            onKeyDown={function handleKey(e) { if (e.key === "Enter") handleRenameNotepad(); if (e.key === "Escape") setEditingName(false); }}
-            autoFocus
-            style={{
-              flex: 1,
-              padding: "2px 4px",
-              fontSize: 11,
-              fontFamily: "inherit",
-              border: "1px solid var(--color-accent)",
-              borderRadius: 4,
-              backgroundColor: "var(--color-bg)",
-              color: "var(--color-text)",
-              outline: "none",
-            }}
-          />
-        ) : (
-          <button
-            onClick={function toggle() { setPadListOpen(!padListOpen); }}
-            onDoubleClick={function startRename() {
-              setEditingName(true);
-              setEditName(activePad?.name || "");
-            }}
-            style={{
-              flex: 1,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "2px 4px",
-              fontSize: 11,
-              fontFamily: "inherit",
-              border: "none",
-              background: "transparent",
-              color: "var(--color-text)",
-              cursor: "pointer",
-              borderRadius: 4,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              textAlign: "left",
-            }}
-          >
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
-              {activePad?.name || "Notepad"}
-            </span>
-            <ChevronDown size={10} style={{ flexShrink: 0, transform: padListOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 150ms" }} />
-          </button>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 0 }}>
+          <StickyNote size={14} style={{ color: "var(--color-accent)", flexShrink: 0 }} />
+          {editingName ? (
+            <input
+              value={editName}
+              onChange={function handleChange(e) { setEditName(e.target.value); }}
+              onBlur={handleRenameNotepad}
+              onKeyDown={function handleKey(e) { if (e.key === "Enter") handleRenameNotepad(); if (e.key === "Escape") setEditingName(false); }}
+              autoFocus
+              style={{
+                flex: 1,
+                padding: "2px 4px",
+                fontSize: 12,
+                fontFamily: "inherit",
+                fontWeight: 600,
+                border: "1px solid var(--color-accent)",
+                borderRadius: 4,
+                backgroundColor: "var(--color-bg)",
+                color: "var(--color-text)",
+                outline: "none",
+              }}
+            />
+          ) : (
+            <button
+              onClick={function toggle() { setPadListOpen(!padListOpen); }}
+              onDoubleClick={function startRename() {
+                setEditingName(true);
+                setEditName(activePad?.name || "");
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                padding: 0,
+                fontSize: 12,
+                fontFamily: "inherit",
+                fontWeight: 600,
+                border: "none",
+                background: "transparent",
+                color: "var(--color-text)",
+                cursor: "pointer",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                textAlign: "left",
+              }}
+            >
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                {activePad?.name || "Notepad"}
+              </span>
+              <ChevronDown size={10} style={{ flexShrink: 0, color: "var(--color-text-muted)", transform: padListOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 150ms" }} />
+            </button>
+          )}
+        </div>
         <button
           onClick={handleNewNotepad}
           title="New notepad"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 20,
-            height: 20,
-            border: "none",
-            background: "transparent",
-            color: "var(--color-text-muted)",
-            cursor: "pointer",
-            borderRadius: 3,
-            flexShrink: 0,
-          }}
+          style={actionBtnStyle}
         >
-          <Plus size={11} />
+          <Plus size={14} />
         </button>
         {padListOpen && (
           <div
@@ -475,6 +431,34 @@ export default function NotesPanel() {
             })}
           </div>
         )}
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "3px 12px",
+          borderBottom: "1px solid var(--color-border)",
+          flexShrink: 0,
+        }}
+      >
+        <span style={{ fontSize: 10, color: "var(--color-text-muted)" }}>
+          {notes.length} note{notes.length !== 1 ? "s" : ""}
+        </span>
+        <div style={{ display: "flex", gap: 2 }}>
+          <button
+            title="Copy all notes"
+            onClick={handleExport}
+            disabled={notes.length === 0}
+            style={{ ...actionBtnStyle, width: 22, height: 22 }}
+          >
+            <Clipboard size={12} />
+          </button>
+          <button title="New note" onClick={handleAddBlank} style={{ ...actionBtnStyle, width: 22, height: 22 }}>
+            <Plus size={12} />
+          </button>
+        </div>
       </div>
 
       <div
