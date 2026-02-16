@@ -1,19 +1,27 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useParams } from "next/navigation";
-import type { Editor } from "@tiptap/react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { BubbleMenu, type Editor } from "@tiptap/react";
+import { Plugin, PluginKey } from "@tiptap/pm/state";
+import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { useAppStore } from "@/store";
-import { getLocalDraft, setLocalDraft } from "@/lib/storage";
+import { getLocalDraft, setLocalDraft, clearLocalDraft } from "@/lib/storage";
 import { getRepoInfo } from "@/lib/bookConfig";
+import { ensureDraftBranch } from "@/lib/draftBranch";
 import TiptapEditor from "@/components/editor/TiptapEditor";
 import EditorToolbar from "@/components/editor/EditorToolbar";
 import FocusMode from "@/components/editor/FocusMode";
 import PolishView from "@/components/editor/PolishView";
 import ContinueWriting from "@/components/editor/ContinueWriting";
 import SelectionToolbar from "@/components/editor/SelectionToolbar";
-import InlineDiff from "@/components/editor/InlineDiff";
-import { Loader2, StickyNote } from "lucide-react";
+import MergeConflictEditor from "@/components/editor/MergeConflictEditor";
+import MergeConflictView from "@/components/editor/MergeConflictView";
+import type { MergeConflict } from "@/types";
+import { Loader2 } from "lucide-react";
+
+var noteHighlightKey = new PluginKey("noteHighlight");
+var pendingNoteQuote: string | null = null;
 
 function isImageFile(path: string): boolean {
   const ext = path.split(".").pop()?.toLowerCase() ?? "";
@@ -33,8 +41,96 @@ function getFileName(path: string): string {
   return path.split("/").pop() ?? path;
 }
 
+function findTextInDoc(doc: any, quote: string): { from: number; to: number } | null {
+  var text = doc.textBetween(0, doc.content.size, "\n");
+  var idx = text.indexOf(quote);
+  if (idx === -1) {
+    var shorter = quote.substring(0, 80);
+    idx = text.indexOf(shorter);
+    if (idx === -1) return null;
+    return { from: idx + 1, to: idx + shorter.length + 1 };
+  }
+  return { from: idx + 1, to: idx + quote.length + 1 };
+}
+
+function scrollToQuoteInEditor(ed: Editor, quote: string) {
+  var range = findTextInDoc(ed.state.doc, quote);
+  if (!range) return;
+
+  var plugin = noteHighlightKey.get(ed.state);
+  if (!plugin) {
+    var highlightPlugin = new Plugin({
+      key: noteHighlightKey,
+      state: {
+        init: function init() { return DecorationSet.empty; },
+        apply: function apply(tr, old) {
+          var meta = tr.getMeta(noteHighlightKey);
+          if (meta && meta.action === "show") {
+            var deco = Decoration.inline(meta.from, meta.to, {
+              class: "note-highlight",
+            });
+            return DecorationSet.create(tr.doc, [deco]);
+          }
+          if (meta && meta.action === "fade") {
+            var set = old;
+            var decos = set.find();
+            if (decos.length > 0) {
+              var fadeDeco = Decoration.inline(decos[0].from, decos[0].to, {
+                class: "note-highlight-fade",
+              });
+              return DecorationSet.create(tr.doc, [fadeDeco]);
+            }
+            return DecorationSet.empty;
+          }
+          if (meta && meta.action === "hide") {
+            return DecorationSet.empty;
+          }
+          return old.map(tr.mapping, tr.doc);
+        },
+      },
+      props: {
+        decorations: function decorations(state) {
+          return noteHighlightKey.getState(state);
+        },
+      },
+    });
+    ed.registerPlugin(highlightPlugin);
+  }
+
+  ed.view.dispatch(
+    ed.view.state.tr.setMeta(noteHighlightKey, { action: "show", from: range.from, to: range.to })
+  );
+
+  ed.commands.setTextSelection(range.from);
+
+  setTimeout(function scrollIntoView() {
+    var domAtPos = ed.view.domAtPos(range!.from);
+    var node = domAtPos.node;
+    if (node instanceof HTMLElement) {
+      node.scrollIntoView({ behavior: "smooth", block: "center" });
+    } else if (node.parentElement) {
+      node.parentElement.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, 50);
+
+  setTimeout(function fadeHighlight() {
+    if (ed.isDestroyed) return;
+    ed.view.dispatch(
+      ed.view.state.tr.setMeta(noteHighlightKey, { action: "fade" })
+    );
+  }, 2000);
+
+  setTimeout(function removeHighlight() {
+    if (ed.isDestroyed) return;
+    ed.view.dispatch(
+      ed.view.state.tr.setMeta(noteHighlightKey, { action: "hide" })
+    );
+  }, 3000);
+}
+
 export default function FilePage() {
   const params = useParams();
+  const router = useRouter();
   const pathSegments = params.path as string[];
   const filePath = pathSegments.join("/");
   const fileName = getFileName(filePath);
@@ -57,6 +153,21 @@ export default function FilePage() {
   const currentBook = useAppStore(function selectBook(s) {
     return s.editor.currentBook;
   });
+  const storeDraftBranch = useAppStore(function selectDraftBranch(s) {
+    return s.editor.draftBranch;
+  });
+  const setStoreDraftBranch = useAppStore(function selectSetDraftBranch(s) {
+    return s.setDraftBranch;
+  });
+  const mergeConflicts = useAppStore(function selectMergeConflicts(s) {
+    return s.mergeConflicts;
+  });
+  const setMergeConflicts = useAppStore(function selectSetMergeConflicts(s) {
+    return s.setMergeConflicts;
+  });
+
+  const [splitConflict, setSplitConflict] = useState<MergeConflict | null>(null);
+  const [mouseDown, setMouseDown] = useState(false);
 
   const [initialContent, setInitialContent] = useState<string | null>(null);
   const [markdownText, setMarkdownText] = useState("");
@@ -69,6 +180,9 @@ export default function FilePage() {
   const [loading, setLoading] = useState(true);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const scrollSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cursorRestoredRef = useRef(false);
 
   const [isPolishing, setIsPolishing] = useState(false);
   const [polishContent, setPolishContent] = useState("");
@@ -76,20 +190,105 @@ export default function FilePage() {
   const [continueText, setContinueText] = useState("");
   const [continueResult, setContinueResult] = useState<string | null>(null);
 
-  const [selectedText, setSelectedText] = useState("");
-  const [toolbarPosition, setToolbarPosition] = useState<{ top: number; left: number } | null>(null);
-  const [inlineDiff, setInlineDiff] = useState<{ oldText: string; newText: string } | null>(null);
-
-  const editorContainerRef = useRef<HTMLDivElement>(null);
-  const selectionDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const savedSelectionRef = useRef<{ from: number; to: number } | null>(null);
 
   const [repoInfo, setRepoInfo] = useState<{ owner: string; repo: string; branch: string } | null>(null);
+  const [draftBranch, setDraftBranch] = useState<string | undefined>(storeDraftBranch);
+
+  var cursorStorageKey = "scriva:cursor:" + filePath;
+  var scrollStorageKey = "scriva:scroll:" + filePath;
+
+  function saveCursorPosition() {
+    if (!editor || editor.isDestroyed) return;
+    try {
+      var pos = editor.state.selection.from;
+      sessionStorage.setItem(cursorStorageKey, String(pos));
+    } catch {}
+  }
+
+  function saveScrollPosition() {
+    var container = scrollContainerRef.current;
+    if (!container) return;
+    try {
+      sessionStorage.setItem(scrollStorageKey, String(container.scrollTop));
+    } catch {}
+  }
+
+  function handleScroll() {
+    if (scrollSaveRef.current) {
+      clearTimeout(scrollSaveRef.current);
+    }
+    scrollSaveRef.current = setTimeout(function debouncedSave() {
+      saveScrollPosition();
+      saveCursorPosition();
+    }, 300);
+  }
+
+  useEffect(function trackScrollAndCursor() {
+    var container = scrollContainerRef.current;
+    if (!container) return;
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    return function cleanup() {
+      container!.removeEventListener("scroll", handleScroll);
+      if (scrollSaveRef.current) {
+        clearTimeout(scrollSaveRef.current);
+      }
+      saveScrollPosition();
+      saveCursorPosition();
+    };
+  });
+
+  useEffect(function saveCursorOnSelectionChange() {
+    if (!editor || editor.isDestroyed) return;
+    function onSelectionUpdate() {
+      try {
+        var pos = editor!.state.selection.from;
+        sessionStorage.setItem(cursorStorageKey, String(pos));
+      } catch {}
+    }
+    editor.on("selectionUpdate", onSelectionUpdate);
+    return function cleanup() {
+      editor!.off("selectionUpdate", onSelectionUpdate);
+    };
+  }, [editor, cursorStorageKey]);
+
+  useEffect(function restoreCursorAndScroll() {
+    if (loading || !editor || editor.isDestroyed || cursorRestoredRef.current) return;
+    cursorRestoredRef.current = true;
+
+    try {
+      var savedCursor = sessionStorage.getItem(cursorStorageKey);
+      var savedScroll = sessionStorage.getItem(scrollStorageKey);
+
+      if (savedCursor !== null) {
+        var pos = Number(savedCursor);
+        var docSize = editor.state.doc.content.size;
+        if (pos >= 0 && pos <= docSize) {
+          editor.commands.setTextSelection(pos);
+        }
+      }
+
+      requestAnimationFrame(function restoreScroll() {
+        var container = scrollContainerRef.current;
+        if (container && savedScroll !== null) {
+          container.scrollTop = Number(savedScroll);
+        } else if (savedCursor !== null) {
+          editor.commands.scrollIntoView();
+        }
+      });
+    } catch {}
+  }, [loading, editor, filePath]);
+
+  useEffect(function resetRestoredFlag() {
+    cursorRestoredRef.current = false;
+  }, [filePath]);
 
   useEffect(function loadRepoInfo() {
     const info = getRepoInfo();
     if (info) {
       setRepoInfo(info);
+      if (info.draftBranch) {
+        setDraftBranch(info.draftBranch);
+      }
       return;
     }
     const raw = localStorage.getItem("scriva-current-book");
@@ -101,6 +300,29 @@ export default function FilePage() {
     } catch {}
   }, []);
 
+  useEffect(function initDraftBranch() {
+    if (!repoInfo || !keysStored) return;
+    if (draftBranch) return;
+
+    ensureDraftBranch(repoInfo.owner, repoInfo.repo, repoInfo.branch)
+      .then(function onBranch(branchName) {
+        setDraftBranch(branchName);
+        setStoreDraftBranch(branchName);
+      })
+      .catch(function onErr() {});
+  }, [repoInfo, keysStored, draftBranch, setStoreDraftBranch]);
+
+  useEffect(function trackMouseDown() {
+    function onDown() { setMouseDown(true); }
+    function onUp() { setMouseDown(false); }
+    window.addEventListener("mousedown", onDown);
+    window.addEventListener("mouseup", onUp);
+    return function cleanup() {
+      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
+
   useEffect(function trackChapter() {
     setChapter(filePath);
     return function cleanup() {
@@ -108,12 +330,51 @@ export default function FilePage() {
     };
   }, [filePath, setChapter]);
 
+  useEffect(function handleScrollToQuote() {
+    function onScrollToQuote(e: Event) {
+      var detail = (e as CustomEvent).detail;
+      if (!detail) return;
+      var noteFilePath = detail.filePath as string;
+      var quote = detail.quote as string;
+      if (!quote) return;
+
+      if (noteFilePath && noteFilePath !== filePath) {
+        pendingNoteQuote = quote;
+        router.push("/book/" + noteFilePath);
+        return;
+      }
+
+      if (editor && !editor.isDestroyed) {
+        scrollToQuoteInEditor(editor, quote);
+      }
+    }
+
+    window.addEventListener("scriva:scroll-to-quote", onScrollToQuote);
+    return function cleanup() {
+      window.removeEventListener("scriva:scroll-to-quote", onScrollToQuote);
+    };
+  }, [filePath, editor, router]);
+
+  useEffect(function handlePendingQuote() {
+    if (!pendingNoteQuote || !editor || editor.isDestroyed) return;
+    var quote = pendingNoteQuote;
+    pendingNoteQuote = null;
+    setTimeout(function delayedScroll() {
+      if (editor && !editor.isDestroyed) {
+        scrollToQuoteInEditor(editor, quote);
+      }
+    }, 300);
+  }, [editor, filePath]);
+
   useEffect(function loadFile() {
     if (!keysStored || !repoInfo) return;
 
+    var loadBranch = draftBranch ?? repoInfo.branch;
+    var repoKey = repoInfo.owner + "/" + repoInfo.repo;
+
     if (isImageFile(filePath)) {
       setFileType("image");
-      const url = "https://raw.githubusercontent.com/" + repoInfo.owner + "/" + repoInfo.repo + "/" + repoInfo.branch + "/" + filePath;
+      const url = "https://raw.githubusercontent.com/" + repoInfo.owner + "/" + repoInfo.repo + "/" + loadBranch + "/" + filePath;
       setImageUrl(url);
       setLoading(false);
       return;
@@ -127,7 +388,7 @@ export default function FilePage() {
       setFileType("binary");
     }
 
-    const draft = getLocalDraft(repoInfo.owner + "/" + repoInfo.repo, filePath);
+    var draft = getLocalDraft(repoKey, filePath, loadBranch);
     if (draft !== null) {
       setInitialContent(draft);
       setMarkdownText(draft);
@@ -136,7 +397,7 @@ export default function FilePage() {
     }
 
     fetch(
-      "/api/github/files?owner=" + repoInfo.owner + "&repo=" + repoInfo.repo + "&path=" + encodeURIComponent(filePath) + "&branch=" + repoInfo.branch,
+      "/api/github/files?owner=" + repoInfo.owner + "&repo=" + repoInfo.repo + "&path=" + encodeURIComponent(filePath) + "&branch=" + loadBranch,
     )
       .then(function handleRes(res) { return res.json(); })
       .then(function handleData(data) {
@@ -150,12 +411,11 @@ export default function FilePage() {
         }
         setFileSha(data.sha);
         shaRef.current = data.sha;
-        const content = data.content ?? "";
-        if (draft === null) {
-          setInitialContent(content);
-          setMarkdownText(content);
-          setPlainText(content);
-        }
+        var content = data.content ?? "";
+        setInitialContent(content);
+        setMarkdownText(content);
+        setPlainText(content);
+        clearLocalDraft(repoKey, filePath, loadBranch);
       })
       .catch(function handleErr() {
         if (draft === null) {
@@ -167,10 +427,12 @@ export default function FilePage() {
       .finally(function done() {
         setLoading(false);
       });
-  }, [keysStored, repoInfo, filePath]);
+  }, [keysStored, repoInfo, filePath, draftBranch]);
 
   function saveToGitHub(content: string, retryCount?: number) {
     if (!repoInfo || !keysStored) return;
+
+    var targetBranch = draftBranch ?? repoInfo.branch;
 
     if (saveDebounceRef.current) {
       clearTimeout(saveDebounceRef.current);
@@ -188,7 +450,7 @@ export default function FilePage() {
           path: filePath,
           content: content,
           sha: shaRef.current,
-          branch: repoInfo!.branch,
+          branch: targetBranch,
         }),
       })
         .then(function handleRes(res) { return res.json(); })
@@ -199,7 +461,7 @@ export default function FilePage() {
             setSaveStatus("saved");
           } else if (data.status === 409 && (!retryCount || retryCount < 2)) {
             fetch(
-              "/api/github/files?owner=" + repoInfo!.owner + "&repo=" + repoInfo!.repo + "&path=" + encodeURIComponent(filePath) + "&branch=" + repoInfo!.branch,
+              "/api/github/files?owner=" + repoInfo!.owner + "&repo=" + repoInfo!.repo + "&path=" + encodeURIComponent(filePath) + "&branch=" + targetBranch,
             )
               .then(function refetchRes(res) { return res.json(); })
               .then(function refetchData(freshData) {
@@ -235,12 +497,13 @@ export default function FilePage() {
 
       debounceRef.current = setTimeout(function saveAfterDelay() {
         if (repoInfo) {
-          setLocalDraft(repoInfo.owner + "/" + repoInfo.repo, filePath, md);
+          var saveBranch = draftBranch ?? repoInfo.branch;
+          setLocalDraft(repoInfo.owner + "/" + repoInfo.repo, filePath, md, saveBranch);
         }
         saveToGitHub(md);
       }, 500);
     },
-    [repoInfo, filePath, setSaveStatus],
+    [repoInfo, filePath, setSaveStatus, draftBranch],
   );
 
   function handlePlainTextChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
@@ -254,7 +517,8 @@ export default function FilePage() {
 
     debounceRef.current = setTimeout(function saveAfterDelay() {
       if (repoInfo) {
-        setLocalDraft(repoInfo.owner + "/" + repoInfo.repo, filePath, text);
+        var saveBranch = draftBranch ?? repoInfo.branch;
+        setLocalDraft(repoInfo.owner + "/" + repoInfo.repo, filePath, text, saveBranch);
       }
       saveToGitHub(text);
     }, 500);
@@ -264,7 +528,8 @@ export default function FilePage() {
     if ((e.metaKey || e.ctrlKey) && e.key === "s") {
       e.preventDefault();
       if (repoInfo) {
-        setLocalDraft(repoInfo.owner + "/" + repoInfo.repo, filePath, plainText);
+        var saveBranch = draftBranch ?? repoInfo.branch;
+        setLocalDraft(repoInfo.owner + "/" + repoInfo.repo, filePath, plainText, saveBranch);
       }
       setSaveStatus("saving");
       saveToGitHub(plainText);
@@ -283,12 +548,13 @@ export default function FilePage() {
 
       debounceRef.current = setTimeout(function saveRawMd() {
         if (repoInfo) {
-          setLocalDraft(repoInfo.owner + "/" + repoInfo.repo, filePath, md);
+          var saveBranch = draftBranch ?? repoInfo.branch;
+          setLocalDraft(repoInfo.owner + "/" + repoInfo.repo, filePath, md, saveBranch);
         }
         saveToGitHub(md);
       }, 500);
     },
-    [repoInfo, filePath, setSaveStatus],
+    [repoInfo, filePath, setSaveStatus, draftBranch],
   );
 
   const handleEditorReady = useCallback(function onEditor(ed: Editor | null) {
@@ -298,7 +564,8 @@ export default function FilePage() {
   const handlePolishComplete = useCallback(function polishDone(newContent: string) {
     setMarkdownText(newContent);
     if (repoInfo) {
-      setLocalDraft(repoInfo.owner + "/" + repoInfo.repo, filePath, newContent);
+      var saveBranch = draftBranch ?? repoInfo.branch;
+      setLocalDraft(repoInfo.owner + "/" + repoInfo.repo, filePath, newContent, saveBranch);
     }
     setSaveStatus("saved");
 
@@ -309,7 +576,7 @@ export default function FilePage() {
     setIsPolishing(false);
     setPolishContent("");
     setInitialContent(newContent);
-  }, [repoInfo, filePath, setSaveStatus, editor]);
+  }, [repoInfo, filePath, setSaveStatus, editor, draftBranch]);
 
   const handlePolishCancel = useCallback(function polishCancel() {
     setIsPolishing(false);
@@ -320,7 +587,8 @@ export default function FilePage() {
     const updated = markdownText + "\n\n" + newText;
     setMarkdownText(updated);
     if (repoInfo) {
-      setLocalDraft(repoInfo.owner + "/" + repoInfo.repo, filePath, updated);
+      var saveBranch = draftBranch ?? repoInfo.branch;
+      setLocalDraft(repoInfo.owner + "/" + repoInfo.repo, filePath, updated, saveBranch);
     }
     setSaveStatus("saved");
 
@@ -332,7 +600,7 @@ export default function FilePage() {
     setContinueText("");
     setContinueResult(null);
     setInitialContent(updated);
-  }, [markdownText, repoInfo, filePath, setSaveStatus, editor]);
+  }, [markdownText, repoInfo, filePath, setSaveStatus, editor, draftBranch]);
 
   const handleContinueReject = useCallback(function continueReject() {
     setIsContinuing(false);
@@ -340,23 +608,10 @@ export default function FilePage() {
     setContinueResult(null);
   }, []);
 
-  const handleToolbarResult = useCallback(function toolbarResult(oldText: string, newText: string) {
-    if (savedSelectionRef.current && editor && !editor.isDestroyed) {
-      editor.chain().focus().setTextSelection(savedSelectionRef.current).unsetHighlight().run();
-      savedSelectionRef.current = null;
-    }
-    setToolbarPosition(null);
-    setSelectedText("");
-    setInlineDiff({ oldText, newText });
-  }, [editor]);
-
   const handleToolbarClose = useCallback(function toolbarClose() {
-    if (savedSelectionRef.current && editor && !editor.isDestroyed) {
-      editor.chain().focus().setTextSelection(savedSelectionRef.current).unsetHighlight().run();
-      savedSelectionRef.current = null;
+    if (editor && !editor.isDestroyed) {
+      editor.commands.setTextSelection(editor.state.selection.from);
     }
-    setToolbarPosition(null);
-    setSelectedText("");
   }, [editor]);
 
   const handleAddNote = useCallback(function addNote(quote: string) {
@@ -380,35 +635,11 @@ export default function FilePage() {
     localStorage.setItem(key, JSON.stringify(existing));
     window.dispatchEvent(new CustomEvent("scriva:notes-updated"));
 
-    if (savedSelectionRef.current && editor && !editor.isDestroyed) {
-      editor.chain().focus().setTextSelection(savedSelectionRef.current).unsetHighlight().run();
-      savedSelectionRef.current = null;
+    if (editor && !editor.isDestroyed) {
+      editor.commands.setTextSelection(editor.state.selection.from);
     }
-    setToolbarPosition(null);
-    setSelectedText("");
   }, [filePath, fileName, editor, currentBook]);
 
-  const handleInlineDiffAccept = useCallback(function inlineAccept() {
-    if (!inlineDiff || !editor || editor.isDestroyed) {
-      setInlineDiff(null);
-      return;
-    }
-
-    const currentMd = markdownText;
-    const updated = currentMd.replace(inlineDiff.oldText, inlineDiff.newText);
-    setMarkdownText(updated);
-    if (repoInfo) {
-      setLocalDraft(repoInfo.owner + "/" + repoInfo.repo, filePath, updated);
-    }
-    setSaveStatus("saved");
-    editor.commands.setContent(updated);
-    setInlineDiff(null);
-    setInitialContent(updated);
-  }, [inlineDiff, editor, markdownText, repoInfo, filePath, setSaveStatus]);
-
-  const handleInlineDiffReject = useCallback(function inlineReject() {
-    setInlineDiff(null);
-  }, []);
 
   useEffect(function registerShortcuts() {
     if (fileType !== "markdown") return;
@@ -454,69 +685,91 @@ export default function FilePage() {
     };
   }, [markdownText, editor, isPolishing, isContinuing, fileType]);
 
-  useEffect(function trackSelection() {
-    if (!editor || editor.isDestroyed) return;
+  function handleConflictsResolved(resolved: MergeConflict[]) {
+    setMergeConflicts([]);
+    setSplitConflict(null);
 
-    function handleSelectionUpdate() {
-      if (!editor || editor.isDestroyed) return;
+    if (!repoInfo || !draftBranch) return;
 
-      if (selectionDebounceRef.current) {
-        clearTimeout(selectionDebounceRef.current);
-        selectionDebounceRef.current = null;
-      }
+    resolved.forEach(function commitResolved(conflict) {
+      var content = conflict.sections.map(function getContent(s) {
+        return s.resolvedContent ?? s.context ?? "";
+      }).join("\n");
 
-      const { from, to } = editor.state.selection;
-      if (from === to) {
-        if (savedSelectionRef.current && editor && !editor.isDestroyed) {
-          editor.chain().setTextSelection(savedSelectionRef.current).unsetHighlight().setTextSelection(from).run();
-          savedSelectionRef.current = null;
-        }
-        setSelectedText("");
-        setToolbarPosition(null);
-        return;
-      }
-
-      const text = editor.state.doc.textBetween(from, to, " ");
-      if (text.trim().length < 10) {
-        setSelectedText("");
-        setToolbarPosition(null);
-        return;
-      }
-
-      selectionDebounceRef.current = setTimeout(function showToolbar() {
-        if (!editor || editor.isDestroyed) return;
-
-        const currentSel = editor.state.selection;
-        if (currentSel.from === currentSel.to) return;
-
-        const currentText = editor.state.doc.textBetween(currentSel.from, currentSel.to, " ");
-        if (currentText.trim().length < 10) return;
-
-        setSelectedText(currentText);
-
-        savedSelectionRef.current = { from: currentSel.from, to: currentSel.to };
-        editor.chain().setTextSelection({ from: currentSel.from, to: currentSel.to }).setHighlight({ color: "rgba(184, 134, 11, 0.2)" }).run();
-
-        const coords = editor.view.coordsAtPos(currentSel.from);
-        const container = editorContainerRef.current;
-        if (container) {
-          const rect = container.getBoundingClientRect();
-          setToolbarPosition({
-            top: coords.top - rect.top,
-            left: coords.left - rect.left,
+      fetch("/api/github/files?owner=" + repoInfo!.owner + "&repo=" + repoInfo!.repo + "&path=" + encodeURIComponent(conflict.file) + "&branch=" + draftBranch, {})
+        .then(function getRes(res) { return res.json(); })
+        .then(function commitFile(data) {
+          if (!data.sha) return;
+          return fetch("/api/github/files", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              owner: repoInfo!.owner,
+              repo: repoInfo!.repo,
+              path: conflict.file,
+              content: content,
+              sha: data.sha,
+              branch: draftBranch,
+              message: "Resolve merge conflict in " + conflict.file,
+            }),
           });
-        }
-      }, 600);
-    }
+        })
+        .catch(function noop() {});
+    });
+  }
 
-    editor.on("selectionUpdate", handleSelectionUpdate);
-    return function cleanup() {
-      editor.off("selectionUpdate", handleSelectionUpdate);
-      if (selectionDebounceRef.current) {
-        clearTimeout(selectionDebounceRef.current);
-      }
-    };
-  }, [editor]);
+  function handleConflictsCancel() {
+    setMergeConflicts([]);
+    setSplitConflict(null);
+  }
+
+  function handleOpenSplit(conflict: MergeConflict) {
+    setSplitConflict(conflict);
+  }
+
+  function handleSplitResolved(resolved: MergeConflict) {
+    setSplitConflict(null);
+    var updated = mergeConflicts.map(function updateFile(c) {
+      if (c.file === resolved.file) return resolved;
+      return c;
+    });
+    setMergeConflicts(updated);
+    var allDone = updated.every(function checkFile(c) {
+      return c.sections.every(function checkSection(s) { return !!s.resolved; });
+    });
+    if (allDone) {
+      handleConflictsResolved(updated);
+    }
+  }
+
+  function handleSplitCancel() {
+    setSplitConflict(null);
+  }
+
+  if (splitConflict) {
+    return (
+      <div style={{ height: "100%", backgroundColor: "var(--color-bg)" }}>
+        <MergeConflictView
+          conflict={splitConflict}
+          onResolve={handleSplitResolved}
+          onCancel={handleSplitCancel}
+        />
+      </div>
+    );
+  }
+
+  if (mergeConflicts.length > 0) {
+    return (
+      <div style={{ height: "100%", backgroundColor: "var(--color-bg)" }}>
+        <MergeConflictEditor
+          conflicts={mergeConflicts}
+          onResolve={handleConflictsResolved}
+          onCancel={handleConflictsCancel}
+          onOpenSplit={handleOpenSplit}
+        />
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -649,7 +902,7 @@ export default function FilePage() {
         >
           <span>{filePath}</span>
         </div>
-        <div style={{ flex: 1, overflow: "auto", display: "flex" }}>
+        <div ref={scrollContainerRef} style={{ flex: 1, overflow: "auto", display: "flex" }}>
           <div
             style={{
               width: gutterWidth,
@@ -805,7 +1058,32 @@ export default function FilePage() {
         </div>
       )}
 
-      <div ref={editorContainerRef} style={{ flex: 1, overflowY: "auto", position: "relative" }}>
+      {!isPolishing && !isContinuing && editor && (
+        <BubbleMenu
+          editor={editor}
+          updateDelay={200}
+          shouldShow={function checkSelection({ state, from, to }) {
+            if (mouseDown) return false;
+            if (from === to) return false;
+            var text = state.doc.textBetween(from, to, " ");
+            return text.trim().length >= 10;
+          }}
+          tippyOptions={{
+            placement: "top-start",
+            duration: 0,
+            maxWidth: "none",
+            interactive: true,
+          }}
+        >
+          <SelectionToolbar
+            editor={editor}
+            onClose={handleToolbarClose}
+            onAddNote={handleAddNote}
+          />
+        </BubbleMenu>
+      )}
+
+      <div ref={scrollContainerRef} style={{ flex: 1, overflowY: "auto" }}>
         {editorContent}
 
         {isContinuing && (
@@ -824,33 +1102,6 @@ export default function FilePage() {
           </div>
         )}
 
-        {inlineDiff && (
-          <div
-            style={{
-              maxWidth: 680,
-              margin: "0 auto",
-              padding: "0.5rem 2rem",
-            }}
-          >
-            <InlineDiff
-              oldText={inlineDiff.oldText}
-              newText={inlineDiff.newText}
-              onAccept={handleInlineDiffAccept}
-              onReject={handleInlineDiffReject}
-            />
-          </div>
-        )}
-
-        {toolbarPosition && selectedText && !isPolishing && !isContinuing && editor && (
-          <SelectionToolbar
-            editor={editor}
-            selectedText={selectedText}
-            position={toolbarPosition}
-            onAIResult={handleToolbarResult}
-            onClose={handleToolbarClose}
-            onAddNote={handleAddNote}
-          />
-        )}
       </div>
 
       <FocusMode>{editorContent}</FocusMode>

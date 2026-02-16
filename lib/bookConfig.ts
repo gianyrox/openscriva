@@ -136,10 +136,10 @@ async function detectBookStructure(
   };
 }
 
-export function getRepoInfo(currentBook?: string): { owner: string; repo: string; branch: string } | null {
+export function getRepoInfo(currentBook?: string): { owner: string; repo: string; branch: string; draftBranch?: string } | null {
   const config = getBookConfig(currentBook);
   if (config) {
-    return { owner: config.owner, repo: config.repo, branch: config.branch };
+    return { owner: config.owner, repo: config.repo, branch: config.branch, draftBranch: config.draftBranch };
   }
 
   if (!isClient()) return null;

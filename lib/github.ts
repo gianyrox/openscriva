@@ -164,7 +164,7 @@ export async function listBranches(
   token: string,
   owner: string,
   repo: string,
-): Promise<{ name: string; protected: boolean }[]> {
+): Promise<{ name: string; protected: boolean; lastAuthor?: string; lastAuthorAvatar?: string; lastUpdated?: string }[]> {
   const octokit = createOctokit(token);
 
   try {
@@ -174,12 +174,45 @@ export async function listBranches(
       per_page: 100,
     });
 
-    return data.map(function mapBranch(b) {
+    const basic = data.map(function mapBranch(b) {
       return {
         name: b.name,
         protected: b.protected,
+        sha: b.commit.sha,
       };
     });
+
+    const draftBranches = basic.filter(function isDraft(b) {
+      return b.name.startsWith("scriva/");
+    });
+
+    const enriched: { name: string; protected: boolean; lastAuthor?: string; lastAuthorAvatar?: string; lastUpdated?: string }[] = basic.map(function toResult(b) {
+      return { name: b.name, protected: b.protected };
+    });
+
+    if (draftBranches.length > 0) {
+      const commitPromises = draftBranches.map(function fetchCommit(b) {
+        return octokit.git.getCommit({ owner, repo, commit_sha: b.sha }).then(function handleCommit(res) {
+          return { branchName: b.name, author: res.data.author };
+        }).catch(function noop() {
+          return { branchName: b.name, author: null };
+        });
+      });
+
+      const commitResults = await Promise.all(commitPromises);
+
+      for (var i = 0; i < enriched.length; i++) {
+        var match = commitResults.find(function findMatch(c) {
+          return c.branchName === enriched[i].name;
+        });
+        if (match && match.author) {
+          enriched[i].lastAuthor = match.author.name;
+          enriched[i].lastUpdated = match.author.date;
+        }
+      }
+    }
+
+    return enriched;
   } catch (err: unknown) {
     throw new Error(
       `Failed to list branches: ${err instanceof Error ? err.message : "Unknown error"}`,

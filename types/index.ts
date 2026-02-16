@@ -36,6 +36,7 @@ export interface BookConfig {
   repo: string;
   owner: string;
   branch: string;
+  draftBranch?: string;
   private?: boolean;
   book: Book;
 }
@@ -90,10 +91,25 @@ export type SaveStatus = "idle" | "saving" | "saved" | "offline" | "error";
 export interface EditorState {
   currentChapter?: string;
   currentBook?: string;
+  draftBranch?: string;
   saveStatus: SaveStatus;
   wordCount: number;
   isMarkdownView: boolean;
   isFocusMode: boolean;
+}
+
+export interface MergeConflict {
+  file: string;
+  sections: ConflictSection[];
+}
+
+export interface ConflictSection {
+  id: string;
+  yours: string;
+  theirs: string;
+  context: string;
+  resolved?: "yours" | "theirs" | "both" | "custom";
+  resolvedContent?: string;
 }
 
 export interface FileTreeNode {

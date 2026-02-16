@@ -5,17 +5,36 @@ import type {
   Preferences,
   PanelState,
   EditorState,
+  MergeConflict,
 } from "@/types";
+
+interface ReviewPR {
+  number: number;
+  title: string;
+  body: string | null;
+  state: string;
+  user: { login: string };
+  head: { ref: string };
+  base: { ref: string };
+  created_at: string;
+  changed_files: number;
+  merged?: boolean;
+}
 
 interface AppState {
   editor: EditorState;
   panels: PanelState;
   preferences: Preferences;
+  mergeConflicts: MergeConflict[];
+  reviewPR: ReviewPR | null;
 
   setChapter: (chapterId: string | undefined) => void;
   setBook: (bookId: string | undefined) => void;
+  setDraftBranch: (branch: string | undefined) => void;
   setSaveStatus: (status: SaveStatus) => void;
   setWordCount: (count: number) => void;
+  setMergeConflicts: (conflicts: MergeConflict[]) => void;
+  setReviewPR: (pr: ReviewPR | null) => void;
   toggleMarkdownView: () => void;
   toggleFocusMode: () => void;
   toggleLeftPanel: () => void;
@@ -32,11 +51,15 @@ export const useAppStore = create<AppState>()(
         editor: {
           currentChapter: undefined,
           currentBook: undefined,
+          draftBranch: undefined,
           saveStatus: "idle",
           wordCount: 0,
           isMarkdownView: false,
           isFocusMode: false,
         },
+
+        mergeConflicts: [],
+        reviewPR: null,
 
         panels: {
           leftOpen: true,
@@ -68,6 +91,14 @@ export const useAppStore = create<AppState>()(
           });
         },
 
+        setDraftBranch: function setDraftBranch(branch) {
+          set(function updateDraftBranch(state) {
+            return {
+              editor: { ...state.editor, draftBranch: branch },
+            };
+          });
+        },
+
         setSaveStatus: function setSaveStatus(status) {
           set(function updateSaveStatus(state) {
             return {
@@ -82,6 +113,14 @@ export const useAppStore = create<AppState>()(
               editor: { ...state.editor, wordCount: count },
             };
           });
+        },
+
+        setMergeConflicts: function setMergeConflicts(conflicts) {
+          set({ mergeConflicts: conflicts });
+        },
+
+        setReviewPR: function setReviewPR(pr) {
+          set({ reviewPR: pr });
         },
 
         toggleMarkdownView: function toggleMarkdownView() {
@@ -159,7 +198,7 @@ export const useAppStore = create<AppState>()(
         return {
           panels: state.panels,
           preferences: state.preferences,
-          editor: { currentBook: state.editor.currentBook },
+          editor: { currentBook: state.editor.currentBook, draftBranch: state.editor.draftBranch },
         };
       },
       merge: function mergeState(persisted: unknown, current: AppState): AppState {
@@ -169,7 +208,11 @@ export const useAppStore = create<AppState>()(
           ...current,
           panels: { ...current.panels, ...(p.panels ?? {}) },
           preferences: { ...current.preferences, ...(p.preferences ?? {}) },
-          editor: { ...current.editor, currentBook: p.editor?.currentBook ?? current.editor.currentBook },
+          editor: {
+            ...current.editor,
+            currentBook: p.editor?.currentBook ?? current.editor.currentBook,
+            draftBranch: p.editor?.draftBranch ?? current.editor.draftBranch,
+          },
         };
       },
     },

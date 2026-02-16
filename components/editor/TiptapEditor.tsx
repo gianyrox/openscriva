@@ -15,6 +15,7 @@ import Underline from "@tiptap/extension-underline";
 import { Markdown } from "tiptap-markdown";
 import { useAppStore } from "@/store";
 import { SlashCommands, suggestion } from "./SlashCommand";
+import { InlineSuggestion } from "./extensions/inlineSuggestion";
 
 interface TiptapEditorProps {
   initialContent: string;
@@ -68,6 +69,7 @@ export default function TiptapEditor({
       TextStyle,
       Color,
       Underline,
+      InlineSuggestion,
     ],
     content: initialContent,
     editable,

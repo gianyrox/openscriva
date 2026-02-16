@@ -66,6 +66,9 @@ export default function ShelfPage() {
   const setBook = useAppStore(function selectSetBook(s) {
     return s.setBook;
   });
+  const setDraftBranch = useAppStore(function selectSetDraftBranch(s) {
+    return s.setDraftBranch;
+  });
 
   const [shelfBooks, setShelfBooks] = useState<ShelfBook[]>([]);
   const [pageState, setPageState] = useState<PageState>("loading");
@@ -143,6 +146,32 @@ export default function ShelfPage() {
     setBook(repo.full_name);
 
     const [owner, repoName] = repo.full_name.split("/");
+    fetchAndSaveBookConfig(owner, repoName, repo.default_branch, repo.private).then(function done() {
+      router.push("/book");
+    }).catch(function fallback() {
+      router.push("/book");
+    });
+  }
+
+  function handleSelectBranch(repo: ShelfBook | { name: string; full_name: string; description: string | null; private: boolean; default_branch: string; updated_at: string | null }, branch: string) {
+    var bookData = {
+      name: repo.name,
+      full_name: repo.full_name,
+      description: repo.description,
+      private: repo.private,
+      default_branch: repo.default_branch,
+      updated_at: null,
+    };
+    localStorage.setItem("scriva-current-book", JSON.stringify(bookData));
+    setBook(repo.full_name);
+
+    if (branch !== repo.default_branch) {
+      setDraftBranch(branch);
+    } else {
+      setDraftBranch(undefined);
+    }
+
+    var [owner, repoName] = repo.full_name.split("/");
     fetchAndSaveBookConfig(owner, repoName, repo.default_branch, repo.private).then(function done() {
       router.push("/book");
     }).catch(function fallback() {
@@ -417,6 +446,9 @@ export default function ShelfPage() {
                   }}
                   onSelect={function onSelect() {
                     handleSelectRepo(book);
+                  }}
+                  onSelectBranch={function onBranch(_repo, branch) {
+                    handleSelectBranch(book, branch);
                   }}
                 />
               );

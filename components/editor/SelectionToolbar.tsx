@@ -12,6 +12,7 @@ import {
   Link,
   Sparkles,
   StickyNote,
+  X,
 } from "lucide-react";
 import type { Editor } from "@tiptap/react";
 import { useAppStore } from "@/store";
@@ -19,24 +20,12 @@ import { estimateTokens, formatTokenCount } from "@/lib/tokens";
 
 interface SelectionToolbarProps {
   editor: Editor;
-  selectedText: string;
-  position: { top: number; left: number };
-  onAIResult: (oldText: string, newText: string) => void;
   onClose: () => void;
   onAddNote?: (quote: string) => void;
 }
 
-const QUICK_ACTIONS = [
-  { label: "Polish", mode: "cleanup" as const, instruction: "" },
-  { label: "Simplify", mode: "inline" as const, instruction: "Simplify this text. Make it clearer and more concise." },
-  { label: "Expand", mode: "inline" as const, instruction: "Expand this text with more detail and description while maintaining the same style." },
-];
-
 export default function SelectionToolbar({
   editor,
-  selectedText,
-  position,
-  onAIResult,
   onClose,
   onAddNote,
 }: SelectionToolbarProps) {
@@ -44,6 +33,7 @@ export default function SelectionToolbar({
   const [loading, setLoading] = useState(false);
   const [linkMode, setLinkMode] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
+  const selectionRef = useRef({ from: 0, to: 0, text: "" });
   const toolbarRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const linkInputRef = useRef<HTMLInputElement>(null);
@@ -51,7 +41,19 @@ export default function SelectionToolbar({
     return s.preferences;
   });
 
-  useEffect(function handleEscape() {
+  useEffect(function captureSelection() {
+    var { from, to } = editor.state.selection;
+    var text = from !== to ? editor.state.doc.textBetween(from, to, " ") : "";
+    selectionRef.current = { from, to, text };
+    if (from !== to) {
+      editor.commands.lockSelection({ from, to });
+    }
+    return function cleanup() {
+      editor.commands.unlockSelection();
+    };
+  }, [editor]);
+
+  useEffect(function handleKeys() {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
         if (linkMode) {
@@ -74,29 +76,35 @@ export default function SelectionToolbar({
     }
   }, [linkMode]);
 
-  async function handleEdit(mode: "inline" | "cleanup", customInstruction: string) {
+  async function handleEdit(customInstruction: string) {
     if (!preferences.keysStored) return;
+    var sel = selectionRef.current;
+    if (!sel.text.trim()) return;
     setLoading(true);
 
     try {
-      const res = await fetch("/api/ai/edit", {
+      var res = await fetch("/api/ai/edit", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          text: selectedText,
+          text: sel.text,
           instruction: customInstruction,
-          mode,
+          mode: "inline",
           model: preferences.defaultModel,
         }),
       });
 
       if (!res.ok) throw new Error("API error: " + res.status);
 
-      const data = await res.json();
+      var data = await res.json();
       if (data.result) {
-        onAIResult(selectedText, data.result);
+        editor.commands.setSuggestion({
+          from: sel.from,
+          to: sel.to,
+          original: sel.text,
+          suggested: data.result,
+        });
+        onClose();
       }
     } catch {
     } finally {
@@ -107,10 +115,11 @@ export default function SelectionToolbar({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!instruction.trim()) return;
-    handleEdit("inline", instruction.trim());
+    handleEdit(instruction.trim());
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
+    e.stopPropagation();
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
@@ -120,16 +129,26 @@ export default function SelectionToolbar({
   function handleLinkSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!linkUrl.trim()) return;
-    editor.chain().focus().setLink({ href: linkUrl.trim() }).run();
+    var { from, to } = selectionRef.current;
+    editor.chain().focus().setTextSelection({ from, to }).setLink({ href: linkUrl.trim() }).run();
     setLinkMode(false);
     setLinkUrl("");
   }
 
   function handleLinkKeyDown(e: React.KeyboardEvent) {
+    e.stopPropagation();
     if (e.key === "Enter") {
       e.preventDefault();
       handleLinkSubmit(e);
     }
+  }
+
+  function restoreSelectionAndRun(action: () => void) {
+    return function run() {
+      var { from, to } = selectionRef.current;
+      editor.chain().focus().setTextSelection({ from, to }).run();
+      action();
+    };
   }
 
   function formatBtn(
@@ -145,7 +164,7 @@ export default function SelectionToolbar({
         onMouseDown={function preventBlur(e) {
           e.preventDefault();
         }}
-        onClick={action}
+        onClick={restoreSelectionAndRun(action)}
         style={{
           display: "flex",
           alignItems: "center",
@@ -180,42 +199,23 @@ export default function SelectionToolbar({
     );
   }
 
-  const tokenEstimate = `~${formatTokenCount(estimateTokens(selectedText))}t`;
+  var tokenEstimate = "~" + formatTokenCount(estimateTokens(selectionRef.current.text)) + "t";
 
   return (
     <div
       ref={toolbarRef}
       onMouseDown={function preventFocusSteal(e) {
-        var target = e.target as HTMLElement;
-        if (target.tagName !== "INPUT" && target.tagName !== "TEXTAREA") {
-          e.preventDefault();
-        }
+        e.preventDefault();
       }}
       style={{
-        position: "absolute",
-        top: position.top - 52,
-        left: position.left,
-        transform: "translateY(-100%)",
         backgroundColor: "var(--color-surface)",
         border: "1px solid var(--color-border)",
         borderRadius: 10,
         boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
-        padding: 0,
-        display: "flex",
-        flexDirection: "column",
         fontFamily: "var(--font-inter), system-ui, sans-serif",
-        zIndex: 50,
-        animation: "selToolbarIn 200ms ease-out",
-        minWidth: 320,
+        minWidth: 340,
       }}
     >
-      <style>{`
-        @keyframes selToolbarIn {
-          from { opacity: 0; transform: translateY(-100%) translateY(4px) scale(0.98); }
-          to { opacity: 1; transform: translateY(-100%) scale(1); }
-        }
-      `}</style>
-
       <div
         style={{
           display: "flex",
@@ -226,19 +226,19 @@ export default function SelectionToolbar({
       >
         {formatBtn(
           <Bold size={14} />,
-          function toggleBold() { editor.chain().focus().toggleBold().run(); },
+          function toggleBold() { editor.chain().toggleBold().run(); },
           editor.isActive("bold"),
           "Bold",
         )}
         {formatBtn(
           <Italic size={14} />,
-          function toggleItalic() { editor.chain().focus().toggleItalic().run(); },
+          function toggleItalic() { editor.chain().toggleItalic().run(); },
           editor.isActive("italic"),
           "Italic",
         )}
         {formatBtn(
           <Strikethrough size={14} />,
-          function toggleStrike() { editor.chain().focus().toggleStrike().run(); },
+          function toggleStrike() { editor.chain().toggleStrike().run(); },
           editor.isActive("strike"),
           "Strikethrough",
         )}
@@ -247,19 +247,19 @@ export default function SelectionToolbar({
 
         {formatBtn(
           <Heading1 size={14} />,
-          function toggleH1() { editor.chain().focus().toggleHeading({ level: 1 }).run(); },
+          function toggleH1() { editor.chain().toggleHeading({ level: 1 }).run(); },
           editor.isActive("heading", { level: 1 }),
           "Heading 1",
         )}
         {formatBtn(
           <Heading2 size={14} />,
-          function toggleH2() { editor.chain().focus().toggleHeading({ level: 2 }).run(); },
+          function toggleH2() { editor.chain().toggleHeading({ level: 2 }).run(); },
           editor.isActive("heading", { level: 2 }),
           "Heading 2",
         )}
         {formatBtn(
           <Heading3 size={14} />,
-          function toggleH3() { editor.chain().focus().toggleHeading({ level: 3 }).run(); },
+          function toggleH3() { editor.chain().toggleHeading({ level: 3 }).run(); },
           editor.isActive("heading", { level: 3 }),
           "Heading 3",
         )}
@@ -268,7 +268,7 @@ export default function SelectionToolbar({
 
         {formatBtn(
           <Highlighter size={14} />,
-          function toggleHighlight() { editor.chain().focus().toggleHighlight({ color: "#fef08a" }).run(); },
+          function toggleHighlight() { editor.chain().toggleHighlight({ color: "#fef08a" }).run(); },
           editor.isActive("highlight"),
           "Highlight",
         )}
@@ -288,6 +288,9 @@ export default function SelectionToolbar({
               value={linkUrl}
               onChange={function handleLinkChange(e) {
                 setLinkUrl(e.target.value);
+              }}
+              onClick={function focusLink() {
+                linkInputRef.current?.focus();
               }}
               onKeyDown={handleLinkKeyDown}
               placeholder="https://..."
@@ -317,29 +320,52 @@ export default function SelectionToolbar({
           <StickyNote size={14} />,
           function addNote() {
             if (onAddNote) {
-              onAddNote(selectedText);
+              onAddNote(selectionRef.current.text);
             }
           },
           false,
           "Add Note",
         )}
+
+        <div style={{ flex: 1 }} />
+
+        <span
+          style={{
+            fontSize: 10,
+            color: "var(--color-text-muted)",
+            marginRight: 4,
+          }}
+        >
+          {tokenEstimate}
+        </span>
+
+        <button
+          title="Close"
+          onClick={onClose}
+          onMouseDown={function preventBlur(e) {
+            e.preventDefault();
+          }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 24,
+            height: 24,
+            borderRadius: 4,
+            border: "none",
+            backgroundColor: "transparent",
+            color: "var(--color-text-muted)",
+            cursor: "pointer",
+            flexShrink: 0,
+          }}
+        >
+          <X size={14} />
+        </button>
       </div>
 
-      <div
-        style={{
-          height: 1,
-          backgroundColor: "var(--color-border)",
-        }}
-      />
+      <div style={{ height: 1, backgroundColor: "var(--color-border)" }} />
 
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 6,
-          padding: "8px 10px",
-        }}
-      >
+      <div style={{ padding: "8px 10px" }}>
         <form
           onSubmit={handleSubmit}
           style={{
@@ -348,6 +374,7 @@ export default function SelectionToolbar({
             gap: 6,
           }}
         >
+          <Sparkles size={14} style={{ color: "var(--color-text-muted)", flexShrink: 0 }} />
           <input
             ref={inputRef}
             type="text"
@@ -355,8 +382,11 @@ export default function SelectionToolbar({
             onChange={function handleChange(e) {
               setInstruction(e.target.value);
             }}
+            onClick={function focusInput() {
+              inputRef.current?.focus();
+            }}
             onKeyDown={handleKeyDown}
-            placeholder="Make this more concise..."
+            placeholder={loading ? "Editing..." : "Edit instruction..."}
             disabled={loading}
             style={{
               flex: 1,
@@ -370,90 +400,20 @@ export default function SelectionToolbar({
               outline: "none",
             }}
           />
-          <button
-            type="submit"
-            disabled={!instruction.trim() || loading}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 28,
-              height: 28,
-              borderRadius: 6,
-              border: "none",
-              backgroundColor: instruction.trim() && !loading
-                ? "var(--color-accent)"
-                : "var(--color-surface-hover)",
-              color: instruction.trim() && !loading ? "#fff" : "var(--color-text-muted)",
-              cursor: instruction.trim() && !loading ? "pointer" : "default",
-              flexShrink: 0,
-            }}
-          >
-            <Sparkles size={14} />
-          </button>
-        </form>
-
-        <div style={{ display: "flex", gap: 4 }}>
-          {QUICK_ACTIONS.map(function renderAction(action) {
-            return (
-              <button
-                key={action.label}
-                onClick={function handleClick() {
-                  handleEdit(action.mode, action.instruction);
-                }}
-                disabled={loading}
-                style={{
-                  padding: "4px 10px",
-                  fontSize: 11,
-                  fontFamily: "inherit",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: 5,
-                  backgroundColor: "transparent",
-                  color: loading ? "var(--color-text-muted)" : "var(--color-text)",
-                  cursor: loading ? "default" : "pointer",
-                  transition: "background-color 100ms",
-                }}
-              >
-                {action.label}
-              </button>
-            );
-          })}
-          <span
-            style={{
-              marginLeft: "auto",
-              fontSize: 10,
-              color: "var(--color-text-muted)",
-              alignSelf: "center",
-            }}
-          >
-            {tokenEstimate}
-          </span>
-        </div>
-
-        {loading && (
-          <div
-            style={{
-              fontSize: 11,
-              color: "var(--color-text-muted)",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "2px 0",
-            }}
-          >
+          {loading && (
             <span
               style={{
-                width: 12,
-                height: 12,
+                width: 14,
+                height: 14,
                 border: "2px solid var(--color-border)",
                 borderTopColor: "var(--color-accent)",
                 borderRadius: "50%",
                 animation: "spin 0.8s linear infinite",
+                flexShrink: 0,
               }}
             />
-            Editing...
-          </div>
-        )}
+          )}
+        </form>
       </div>
     </div>
   );

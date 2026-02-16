@@ -122,6 +122,9 @@ export default function FileExplorer() {
   const currentChapter = useAppStore(function selectChapter(s) {
     return s.editor.currentChapter;
   });
+  const storeDraftBranch = useAppStore(function selectDraftBranch(s) {
+    return s.editor.draftBranch;
+  });
 
   const [tree, setTree] = useState<FileTreeNode[]>([]);
   const [loading, setLoading] = useState(true);
@@ -174,7 +177,8 @@ export default function FileExplorer() {
       return;
     }
 
-    setRepoInfo({ owner, repo, branch: bookData.default_branch, fullName: bookData.full_name });
+    var treeBranch = storeDraftBranch ?? bookData.default_branch;
+    setRepoInfo({ owner, repo, branch: treeBranch, fullName: bookData.full_name });
     const savedExpanded = loadExpandedState(bookData.full_name);
     if (savedExpanded.size > 0) {
       setExpanded(savedExpanded);
@@ -182,7 +186,7 @@ export default function FileExplorer() {
 
     setLoading(true);
     fetch(
-      "/api/github/tree?owner=" + owner + "&repo=" + repo + "&branch=" + bookData.default_branch,
+      "/api/github/tree?owner=" + owner + "&repo=" + repo + "&branch=" + treeBranch,
     )
       .then(function handleRes(res) {
         return res.json();
@@ -210,7 +214,7 @@ export default function FileExplorer() {
         setLoading(false);
         setRefreshing(false);
       });
-  }, [keysStored]);
+  }, [keysStored, storeDraftBranch]);
 
   useEffect(function onMount() {
     fetchTree();

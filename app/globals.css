@@ -194,6 +194,19 @@
   border-radius: 2px;
 }
 
+.ProseMirror .note-highlight {
+  background-color: rgba(184, 134, 11, 0.25);
+  border-radius: 2px;
+  transition: background-color 300ms ease;
+}
+
+.ProseMirror .note-highlight-fade {
+  background-color: transparent;
+  border-radius: 2px;
+  transition: background-color 800ms ease;
+}
+
+
 .ProseMirror mark {
   background-color: rgba(184, 134, 11, 0.2);
   border-radius: 2px;
@@ -286,4 +299,56 @@
   pointer-events: none;
   float: left;
   height: 0;
+}
+
+.ProseMirror .suggestion-old {
+  background-color: color-mix(in srgb, var(--color-error) 15%, transparent);
+  text-decoration: line-through;
+  text-decoration-color: var(--color-error);
+  color: var(--color-text-muted);
+  border-radius: 2px;
+}
+
+.suggestion-new-wrapper {
+  user-select: none;
+}
+
+.ProseMirror .suggestion-new {
+  background-color: color-mix(in srgb, var(--color-success) 15%, transparent);
+  color: var(--color-text);
+  padding: 1px 2px;
+  border-radius: 2px;
+}
+
+.suggestion-controls {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.suggestion-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+.suggestion-accept-btn {
+  background-color: var(--color-success);
+  color: #fff;
+}
+
+.suggestion-reject-btn {
+  background-color: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
 }

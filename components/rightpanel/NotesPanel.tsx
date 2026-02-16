@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Plus, Clipboard, Trash2, X, StickyNote } from "lucide-react";
+import { Plus, Clipboard, Trash2, X, StickyNote, FileText } from "lucide-react";
 import { useAppStore } from "@/store";
 
 interface Note {
@@ -87,10 +87,11 @@ export default function NotesPanel() {
   function scrollToNote(noteId: string) {
     var el = listRef.current?.querySelector('[data-note-id="' + noteId + '"]');
     if (el instanceof HTMLElement) {
-      el.scrollIntoView({ behavior: "smooth" });
-      el.style.boxShadow = "0 0 0 2px var(--color-accent)";
+      var target = el;
+      target.scrollIntoView({ behavior: "smooth" });
+      target.style.boxShadow = "0 0 0 2px var(--color-accent)";
       setTimeout(function () {
-        el.style.boxShadow = "";
+        target.style.boxShadow = "";
       }, 600);
     }
   }
@@ -256,11 +257,20 @@ export default function NotesPanel() {
             >
               <div
                 onClick={function scrollToQuote() {
+                  if (!note.filePath && !note.quote) return;
                   window.dispatchEvent(
                     new CustomEvent("scriva:scroll-to-quote", {
                       detail: { filePath: note.filePath, quote: note.quote },
                     })
                   );
+                }}
+                onMouseEnter={function hoverIn(e) {
+                  if (note.filePath || note.quote) {
+                    e.currentTarget.style.textDecoration = "underline";
+                  }
+                }}
+                onMouseLeave={function hoverOut(e) {
+                  e.currentTarget.style.textDecoration = "none";
                 }}
                 style={{
                   fontSize: 10,
@@ -269,9 +279,13 @@ export default function NotesPanel() {
                   textTransform: "uppercase",
                   color: "var(--color-accent)",
                   marginBottom: 4,
-                  cursor: note.filePath ? "pointer" : "default",
+                  cursor: note.filePath || note.quote ? "pointer" : "default",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
                 }}
               >
+                {note.filePath && <FileText size={10} />}
                 {note.chapter || "General"}
               </div>
 
@@ -283,6 +297,12 @@ export default function NotesPanel() {
                         detail: { filePath: note.filePath, quote: note.quote },
                       })
                     );
+                  }}
+                  onMouseEnter={function hoverIn(e) {
+                    e.currentTarget.style.backgroundColor = "rgba(184, 134, 11, 0.08)";
+                  }}
+                  onMouseLeave={function hoverOut(e) {
+                    e.currentTarget.style.backgroundColor = "rgba(184, 134, 11, 0.04)";
                   }}
                   style={{
                     fontSize: 12,
@@ -297,6 +317,7 @@ export default function NotesPanel() {
                     maxHeight: 64,
                     overflow: "hidden",
                     cursor: "pointer",
+                    transition: "background-color 150ms",
                   }}
                 >
                   {note.quote.length > 200 ? note.quote.substring(0, 200) + "..." : note.quote}

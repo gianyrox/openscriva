@@ -14,10 +14,14 @@ import {
   Upload,
   MessageSquare,
   Share2,
+  GitBranch,
+  ArrowUpToLine,
+  RefreshCw,
 } from "lucide-react";
 import { useAppStore } from "@/store";
 import PublishPanel from "@/components/editor/PublishPanel";
 import { getBookConfig } from "@/lib/bookConfig";
+import { findOpenDraftPR, createDraftPR, syncDraftFromMain, compareBranches } from "@/lib/draftBranch";
 import type { SaveStatus } from "@/types";
 
 function SaveIndicator({ status }: { status: SaveStatus }) {
@@ -70,11 +74,33 @@ export default function StatusBar() {
   const router = useRouter();
   const [publishOpen, setPublishOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [behindCount, setBehindCount] = useState(0);
+  const [syncing, setSyncing] = useState(false);
+  const [syncFailed, setSyncFailed] = useState(false);
+  const [creatingNewDraft, setCreatingNewDraft] = useState(false);
+  const [showNewDraftInput, setShowNewDraftInput] = useState(false);
+  const [newDraftName, setNewDraftName] = useState("");
+  const [newDraftError, setNewDraftError] = useState("");
+  const [publishing, setPublishing] = useState(false);
+  const syncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const currentBook = useAppStore(function selectCurrentBook(s) {
     return s.editor.currentBook;
   });
   const bookConfig = getBookConfig(currentBook);
+
+  const draftBranch = useAppStore(function selectDraftBranch(s) {
+    return s.editor.draftBranch;
+  });
+  const setDraftBranch = useAppStore(function selectSetDraftBranch(s) {
+    return s.setDraftBranch;
+  });
+  const setMergeConflicts = useAppStore(function selectSetMergeConflicts(s) {
+    return s.setMergeConflicts;
+  });
+  const setReviewPR = useAppStore(function selectSetReviewPR(s) {
+    return s.setReviewPR;
+  });
 
   const wordCount = useAppStore(function selectWordCount(s) {
     return s.editor.wordCount;
@@ -103,6 +129,9 @@ export default function StatusBar() {
   const toggleRightPanel = useAppStore(function selectToggleRight(s) {
     return s.toggleRightPanel;
   });
+  const keysStored = useAppStore(function selectKeysStored(s) {
+    return s.preferences.keysStored;
+  });
 
   const dailyGoal = 1000;
   const todayKey = "scriva:wordcount:" + new Date().toISOString().slice(0, 10);
@@ -129,6 +158,186 @@ export default function StatusBar() {
   }, [wordCount, todayKey]);
 
   const goalProgress = Math.min(dailyWords / dailyGoal, 1);
+
+  useEffect(function checkBehindMain() {
+    if (!bookConfig || !draftBranch || !keysStored) return;
+
+    function check() {
+      compareBranches(
+        bookConfig!.owner,
+        bookConfig!.repo,
+        bookConfig!.branch,
+        draftBranch!,
+      )
+        .then(function handleResult(data) {
+          setBehindCount(data.behind_by);
+        })
+        .catch(function noop() {});
+    }
+
+    check();
+
+    syncIntervalRef.current = setInterval(check, 60000);
+
+    return function cleanup() {
+      if (syncIntervalRef.current) {
+        clearInterval(syncIntervalRef.current);
+      }
+    };
+  }, [bookConfig, draftBranch, keysStored]);
+
+  function handleSyncFromMain() {
+    if (!bookConfig || !draftBranch || syncing) return;
+    setSyncing(true);
+    setSyncFailed(false);
+
+    syncDraftFromMain(
+      bookConfig.owner,
+      bookConfig.repo,
+      bookConfig.branch,
+      draftBranch,
+    )
+      .then(function handleResult(result) {
+        if (result.conflicts) {
+          setSyncFailed(true);
+          compareBranches(
+            bookConfig!.owner,
+            bookConfig!.repo,
+            bookConfig!.branch,
+            draftBranch!,
+          )
+            .then(function handleDiffs(data) {
+              var conflicts = data.files
+                .filter(function hasChanges(f) { return f.patch; })
+                .map(function toConflict(f) {
+                  return {
+                    file: f.filename,
+                    sections: [{
+                      id: f.filename + "-0",
+                      yours: "",
+                      theirs: "",
+                      context: f.patch ?? "",
+                    }],
+                  };
+                });
+              setMergeConflicts(conflicts);
+            })
+            .catch(function noop() {});
+        } else {
+          setBehindCount(0);
+          setSyncFailed(false);
+        }
+      })
+      .catch(function onErr() {
+        setSyncFailed(true);
+      })
+      .finally(function done() {
+        setSyncing(false);
+      });
+  }
+
+  function handleNewDraft() {
+    if (!bookConfig || creatingNewDraft) return;
+    setShowNewDraftInput(true);
+    setNewDraftError("");
+    setNewDraftName("");
+  }
+
+  function handleCreateNewDraft() {
+    if (!bookConfig || creatingNewDraft) return;
+
+    var trimmed = newDraftName.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+    if (!trimmed) {
+      setNewDraftError("Enter a name");
+      return;
+    }
+
+    var branchName = "scriva/" + trimmed;
+    setCreatingNewDraft(true);
+    setNewDraftError("");
+
+    fetch("/api/github/branches", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        owner: bookConfig.owner,
+        repo: bookConfig.repo,
+        name: branchName,
+        from: bookConfig.branch,
+      }),
+    }).then(function handleRes(res) { return res.json(); }).then(function handleData(data) {
+      if (data.error) {
+        setNewDraftError(data.error);
+      } else {
+        setDraftBranch(branchName);
+        setShowNewDraftInput(false);
+        setNewDraftName("");
+        setBehindCount(0);
+        setSyncFailed(false);
+        window.location.reload();
+      }
+    }).catch(function handleErr() {
+      setNewDraftError("Failed to create branch");
+    }).finally(function done() {
+      setCreatingNewDraft(false);
+    });
+  }
+
+  function handlePublishToMain() {
+    if (!bookConfig || !draftBranch || publishing) return;
+    setPublishing(true);
+
+    findOpenDraftPR(bookConfig.owner, bookConfig.repo, draftBranch)
+      .then(function handlePR(existingPR) {
+        if (existingPR) {
+          setReviewPR({
+            number: existingPR.number,
+            title: existingPR.title,
+            body: existingPR.body,
+            state: existingPR.state,
+            user: existingPR.user,
+            head: existingPR.head,
+            base: existingPR.base,
+            created_at: existingPR.created_at,
+            changed_files: existingPR.changed_files,
+          });
+          setPublishing(false);
+          return;
+        }
+
+        var title = bookConfig!.book?.title
+          ? "Publish: " + bookConfig!.book.title
+          : "Publish draft changes";
+
+        createDraftPR(
+          bookConfig!.owner,
+          bookConfig!.repo,
+          draftBranch!,
+          bookConfig!.branch,
+          title,
+        )
+          .then(function openPR(pr) {
+            setReviewPR({
+              number: pr.number,
+              title: title,
+              body: "Auto-created by Scriva. Merges draft changes into " + bookConfig!.branch + ".",
+              state: "open",
+              user: { login: "you" },
+              head: { ref: draftBranch! },
+              base: { ref: bookConfig!.branch },
+              created_at: new Date().toISOString(),
+              changed_files: 0,
+            });
+          })
+          .catch(function noop() {})
+          .finally(function done() {
+            setPublishing(false);
+          });
+      })
+      .catch(function noop() {
+        setPublishing(false);
+      });
+  }
 
   function handleThemeToggle() {
     const next = theme === "paper" ? "study" : "paper";
@@ -217,8 +426,176 @@ export default function StatusBar() {
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <span>Draft 1</span>
+        {draftBranch ? (
+          <span
+            style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
+            title={"Saving to branch: " + draftBranch}
+          >
+            <GitBranch size={12} strokeWidth={1.5} />
+            {draftBranch}
+          </span>
+        ) : (
+          <span>Draft</span>
+        )}
         <SaveIndicator status={saveStatus} />
+        {draftBranch && bookConfig && behindCount > 0 && !syncFailed && (
+          <button
+            onClick={handleSyncFromMain}
+            disabled={syncing}
+            title={"Main has " + behindCount + " new commit" + (behindCount === 1 ? "" : "s") + " — click to sync"}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "2px 8px",
+              borderRadius: 4,
+              border: "1px solid var(--color-accent)",
+              background: "transparent",
+              color: "var(--color-accent)",
+              cursor: syncing ? "wait" : "pointer",
+              fontSize: 11,
+              fontFamily: "inherit",
+              opacity: syncing ? 0.6 : 1,
+              transition: "background 150ms ease",
+            }}
+            onMouseEnter={function onEnter(e) {
+              if (!syncing) e.currentTarget.style.background = "color-mix(in srgb, var(--color-accent) 10%, transparent)";
+            }}
+            onMouseLeave={function onLeave(e) {
+              e.currentTarget.style.background = "transparent";
+            }}
+          >
+            {syncing ? (
+              <Loader2 size={11} strokeWidth={1.5} style={{ animation: "spin 1s linear infinite" }} />
+            ) : (
+              <RefreshCw size={11} strokeWidth={1.5} />
+            )}
+            {syncing ? "Syncing..." : "Sync (" + behindCount + ")"}
+          </button>
+        )}
+        {bookConfig && !showNewDraftInput && (
+          <button
+            onClick={handleNewDraft}
+            title="Create a new draft branch from main"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "2px 8px",
+              borderRadius: 4,
+              border: syncFailed ? "1px solid var(--color-warning, #f59e0b)" : "1px solid var(--color-border)",
+              background: "transparent",
+              color: syncFailed ? "var(--color-warning, #f59e0b)" : "var(--color-text-muted)",
+              cursor: "pointer",
+              fontSize: 11,
+              fontFamily: "inherit",
+              transition: "background 150ms ease",
+            }}
+            onMouseEnter={function onEnter(e) {
+              e.currentTarget.style.background = "var(--color-surface-hover)";
+            }}
+            onMouseLeave={function onLeave(e) {
+              e.currentTarget.style.background = "transparent";
+            }}
+          >
+            <GitBranch size={11} strokeWidth={1.5} />
+            New Draft
+          </button>
+        )}
+        {showNewDraftInput && (
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <span style={{ fontSize: 11, color: "var(--color-text-muted)", flexShrink: 0 }}>scriva/</span>
+            <input
+              type="text"
+              value={newDraftName}
+              onChange={function onChange(e) { setNewDraftName(e.target.value); setNewDraftError(""); }}
+              onKeyDown={function onKey(e) {
+                if (e.key === "Enter") handleCreateNewDraft();
+                if (e.key === "Escape") { setShowNewDraftInput(false); setNewDraftError(""); }
+              }}
+              placeholder="my-revision"
+              autoFocus
+              style={{
+                fontSize: 11,
+                padding: "1px 6px",
+                borderRadius: 3,
+                border: newDraftError ? "1px solid var(--color-error)" : "1px solid var(--color-border)",
+                backgroundColor: "var(--color-bg)",
+                color: "var(--color-text)",
+                outline: "none",
+                fontFamily: "inherit",
+                width: 110,
+              }}
+            />
+            <button
+              onClick={handleCreateNewDraft}
+              disabled={creatingNewDraft}
+              style={{
+                fontSize: 11,
+                fontWeight: 500,
+                padding: "1px 8px",
+                borderRadius: 3,
+                border: "none",
+                backgroundColor: "var(--color-accent)",
+                color: "#fff",
+                cursor: creatingNewDraft ? "wait" : "pointer",
+                opacity: creatingNewDraft ? 0.6 : 1,
+                fontFamily: "inherit",
+                flexShrink: 0,
+              }}
+            >
+              {creatingNewDraft ? "..." : "Create"}
+            </button>
+            <button
+              onClick={function onCancel() { setShowNewDraftInput(false); setNewDraftError(""); }}
+              style={{
+                fontSize: 11,
+                padding: "1px 6px",
+                borderRadius: 3,
+                border: "1px solid var(--color-border)",
+                background: "transparent",
+                color: "var(--color-text-muted)",
+                cursor: "pointer",
+                fontFamily: "inherit",
+                flexShrink: 0,
+              }}
+            >
+              Cancel
+            </button>
+            {newDraftError && (
+              <span style={{ fontSize: 10, color: "var(--color-error)", flexShrink: 0 }}>{newDraftError}</span>
+            )}
+          </div>
+        )}
+        {draftBranch && bookConfig && (
+          <button
+            onClick={handlePublishToMain}
+            disabled={publishing}
+            title="Create or view PR to merge draft into main"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "2px 8px",
+              borderRadius: 4,
+              border: "none",
+              background: "var(--color-accent)",
+              color: "#fff",
+              cursor: publishing ? "wait" : "pointer",
+              fontSize: 11,
+              fontFamily: "inherit",
+              opacity: publishing ? 0.6 : 1,
+              transition: "opacity 150ms ease",
+            }}
+          >
+            {publishing ? (
+              <Loader2 size={11} strokeWidth={1.5} style={{ animation: "spin 1s linear infinite" }} />
+            ) : (
+              <ArrowUpToLine size={11} strokeWidth={1.5} />
+            )}
+            {publishing ? "Publishing..." : "Publish to Main"}
+          </button>
+        )}
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 4 }}>

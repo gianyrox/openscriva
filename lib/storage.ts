@@ -47,10 +47,12 @@ export function setChatHistory(
 export function getLocalDraft(
   repoKey: string,
   chapterId: string,
+  branch?: string,
 ): string | null {
   try {
     if (!isClient()) return null;
-    return localStorage.getItem(`scriva:draft:${repoKey}:${chapterId}`);
+    var suffix = branch ? `:${branch}` : "";
+    return localStorage.getItem(`scriva:draft:${repoKey}:${chapterId}${suffix}`);
   } catch {
     return null;
   }
@@ -60,14 +62,30 @@ export function setLocalDraft(
   repoKey: string,
   chapterId: string,
   content: string,
+  branch?: string,
 ): void {
   try {
     if (!isClient()) return;
+    var suffix = branch ? `:${branch}` : "";
     localStorage.setItem(
-      `scriva:draft:${repoKey}:${chapterId}`,
+      `scriva:draft:${repoKey}:${chapterId}${suffix}`,
       content,
     );
   } catch {
     /* storage full or unavailable */
+  }
+}
+
+export function clearLocalDraft(
+  repoKey: string,
+  chapterId: string,
+  branch?: string,
+): void {
+  try {
+    if (!isClient()) return;
+    var suffix = branch ? `:${branch}` : "";
+    localStorage.removeItem(`scriva:draft:${repoKey}:${chapterId}${suffix}`);
+  } catch {
+    /* storage unavailable */
   }
 }
