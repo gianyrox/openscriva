@@ -8,6 +8,7 @@ interface KeyboardShortcutsProps {
   onClose: () => void;
 }
 
+
 interface ShortcutEntry {
   keys: string[];
   label: string;
