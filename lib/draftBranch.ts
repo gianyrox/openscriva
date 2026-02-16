@@ -1,29 +1,48 @@
-const DRAFT_BRANCH_PREFIX = "scriva/drafts";
+var DRAFT_BRANCH_PREFIX = "scriva/draft";
 
-export function getDraftBranchName(): string {
-  return DRAFT_BRANCH_PREFIX;
+export function getDraftBranchName(customName?: string): string {
+  if (customName) {
+    return DRAFT_BRANCH_PREFIX + "-" + customName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  }
+  var now = new Date();
+  var y = now.getFullYear();
+  var mo = String(now.getMonth() + 1).padStart(2, "0");
+  var d = String(now.getDate()).padStart(2, "0");
+  var h = String(now.getHours()).padStart(2, "0");
+  var mi = String(now.getMinutes()).padStart(2, "0");
+  return DRAFT_BRANCH_PREFIX + "-" + y + mo + d + "-" + h + mi;
+}
+
+export function isScrivaDraftBranch(name: string): boolean {
+  return name.startsWith(DRAFT_BRANCH_PREFIX);
 }
 
 export async function ensureDraftBranch(
   owner: string,
   repo: string,
   baseBranch: string,
+  customName?: string,
 ): Promise<string> {
-  const branchName = getDraftBranchName();
-
-  const listRes = await fetch(
+  var listRes = await fetch(
     "/api/github/branches?owner=" + encodeURIComponent(owner) + "&repo=" + encodeURIComponent(repo),
   );
-  const listData = await listRes.json();
+  var listData = await listRes.json();
 
   if (listData.branches) {
-    const exists = listData.branches.some(function checkName(b: { name: string }) {
-      return b.name === branchName;
+    var existing = listData.branches.find(function findDraft(b: { name: string }) {
+      return isScrivaDraftBranch(b.name);
     });
-    if (exists) return branchName;
+    if (existing) return existing.name;
+
+    var legacy = listData.branches.find(function findLegacy(b: { name: string }) {
+      return b.name === "scriva/drafts";
+    });
+    if (legacy) return legacy.name;
   }
 
-  const createRes = await fetch("/api/github/branches", {
+  var branchName = getDraftBranchName(customName);
+
+  var createRes = await fetch("/api/github/branches", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -34,7 +53,7 @@ export async function ensureDraftBranch(
     }),
   });
 
-  const createData = await createRes.json();
+  var createData = await createRes.json();
 
   if (createData.error && !createData.error.includes("already exists")) {
     throw new Error(createData.error);

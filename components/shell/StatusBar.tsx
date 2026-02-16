@@ -101,6 +101,12 @@ export default function StatusBar() {
   const setReviewPR = useAppStore(function selectSetReviewPR(s) {
     return s.setReviewPR;
   });
+  const pendingAIEdits = useAppStore(function selectPendingAIEdits(s) {
+    return s.pendingAIEdits;
+  });
+  const setShowAIEditReview = useAppStore(function selectSetShowAIEditReview(s) {
+    return s.setShowAIEditReview;
+  });
 
   const wordCount = useAppStore(function selectWordCount(s) {
     return s.editor.wordCount;
@@ -252,7 +258,7 @@ export default function StatusBar() {
       return;
     }
 
-    var branchName = "scriva/" + trimmed;
+    var branchName = "scriva/draft-" + trimmed;
     setCreatingNewDraft(true);
     setNewDraftError("");
 
@@ -504,7 +510,7 @@ export default function StatusBar() {
         )}
         {showNewDraftInput && (
           <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-            <span style={{ fontSize: 11, color: "var(--color-text-muted)", flexShrink: 0 }}>scriva/</span>
+            <span style={{ fontSize: 11, color: "var(--color-text-muted)", flexShrink: 0 }}>scriva/draft-</span>
             <input
               type="text"
               value={newDraftName}
@@ -567,11 +573,34 @@ export default function StatusBar() {
             )}
           </div>
         )}
-        {draftBranch && bookConfig && (
+        {pendingAIEdits.filter(function f(e) { return e.status === "pending"; }).length > 0 && (
+          <button
+            onClick={function openAIReview() { setShowAIEditReview(true); }}
+            title="Review pending AI edit suggestions"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "2px 8px",
+              borderRadius: 4,
+              border: "none",
+              background: "var(--color-accent)",
+              color: "#fff",
+              cursor: "pointer",
+              fontSize: 11,
+              fontFamily: "inherit",
+              transition: "opacity 150ms ease",
+            }}
+          >
+            <Check size={11} strokeWidth={1.5} />
+            Review AI Edits ({pendingAIEdits.filter(function f(e) { return e.status === "pending"; }).length})
+          </button>
+        )}
+        {pendingAIEdits.filter(function f(e) { return e.status === "pending"; }).length === 0 && draftBranch && bookConfig && (
           <button
             onClick={handlePublishToMain}
             disabled={publishing}
-            title="Create or view PR to merge draft into main"
+            title="Review changes and merge draft into main"
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -593,7 +622,7 @@ export default function StatusBar() {
             ) : (
               <ArrowUpToLine size={11} strokeWidth={1.5} />
             )}
-            {publishing ? "Publishing..." : "Publish to Main"}
+            {publishing ? "Publishing..." : "Review & Publish"}
           </button>
         )}
       </div>

@@ -26,12 +26,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    const validModes = ["chat", "research-prompt", "critique", "research", "revision-plan"];
+    const validModes = ["chat", "write", "research-prompt", "critique", "research", "revision-plan", "revision-critique"];
     if (!validModes.includes(body.mode)) {
       return NextResponse.json({ error: "Unknown mode" }, { status: 400 });
     }
 
-    const model: "haiku" | "sonnet" = body.model || "sonnet";
+    const model: "haiku" | "sonnet" | "opus" = body.model || "sonnet";
     const contexts: { type: string; content: string }[] = body.contexts || [];
 
     let systemPrompt = buildSystemPrompt(contexts, body.bookTitle);
@@ -44,19 +44,29 @@ export async function POST(request: NextRequest) {
       systemPrompt += "\n\n" + body.voiceProfile;
     }
 
+    if (body.mode === "chat") {
+      systemPrompt +=
+        "\n\nYou are in CHAT mode. Discuss the book, answer questions about writing craft, brainstorm ideas, and provide feedback conversationally. Do NOT produce edit blocks, do NOT rewrite passages, do NOT output code fences with edits. You are here to talk, not to write or edit. Keep responses conversational and insightful.";
+    }
+
+    if (body.mode === "write") {
+      systemPrompt +=
+        "\n\nYou are in WRITE mode. You can write, edit, and suggest changes to the manuscript. When suggesting edits, wrap them in ```edit code fences. All edits will be presented as inline suggestions for the author to accept or reject individually.";
+    }
+
     if (body.mode === "research-prompt" || body.mode === "research") {
       systemPrompt +=
         "\n\nYour current task is deep research. Provide thorough, well-sourced, detailed research on the topic. Include specific facts, data, historical context, and expert perspectives. Organize findings clearly with headers.";
     }
 
-    if (body.mode === "critique") {
+    if (body.mode === "critique" || body.mode === "revision-critique") {
       systemPrompt +=
         "\n\nYou are providing structural critique of the writing. Focus on: pacing, character development, tension, narrative promises and payoffs, dialogue effectiveness, scene transitions, and emotional impact. Be specific with line-level feedback. Be honest but constructive.";
     }
 
     if (body.mode === "revision-plan") {
       systemPrompt +=
-        "\n\nYou are creating a revision plan from the author's notes. Organize the notes into a prioritized, actionable plan with: 1) Critical issues to address first, 2) Chapter-by-chapter action items, 3) Suggested order of changes, 4) Estimated effort per item. Be specific and reference the author's notes directly.";
+        "\n\nYou are creating a revision plan from the author's notes and critiques. Organize the input into a prioritized, actionable revision plan with: 1) Critical issues to address first, 2) Chapter-by-chapter action items, 3) Suggested order of changes, 4) Estimated effort per item. Be specific and reference the author's notes directly. Output the plan as clean markdown.";
     }
 
     const messages: { role: "user" | "assistant"; content: string }[] =

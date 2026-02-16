@@ -24,11 +24,25 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Scriva",
+  title: "scriva — Write.",
   description:
-    "Open-source, AI-native book writing, editing, and publishing.",
+    "Write your book in a distraction-free editor with AI that knows your characters, your voice, and your story. Manuscripts live in GitHub as markdown. Export EPUB & PDF. Open-source, MIT.",
   icons: {
     icon: "/scriva-mark.svg",
+  },
+  openGraph: {
+    title: "Write.",
+    description: "Your words, your repo, your rules.",
+    images: [{ url: "/og.png", width: 1200, height: 630 }],
+    siteName: "scriva",
+    type: "website",
+    url: "https://openscriva.com",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "scriva — Write.",
+    description: "Open-source, AI-native book writing.",
+    images: ["/og.png"],
   },
 };
 

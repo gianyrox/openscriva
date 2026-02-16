@@ -10,11 +10,12 @@ export function formatTokenCount(count: number): string {
 
 export function estimateCost(
   tokens: number,
-  model: "haiku" | "sonnet",
+  model: "haiku" | "sonnet" | "opus",
 ): number {
-  const rates: Record<"haiku" | "sonnet", { input: number; output: number }> = {
+  const rates: Record<"haiku" | "sonnet" | "opus", { input: number; output: number }> = {
     haiku: { input: 0.25 / 1_000_000, output: 1.25 / 1_000_000 },
     sonnet: { input: 3.0 / 1_000_000, output: 15.0 / 1_000_000 },
+    opus: { input: 15 / 1_000_000, output: 75 / 1_000_000 },
   };
   const rate = rates[model];
   return tokens * ((rate.input + rate.output) / 2);

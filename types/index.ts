@@ -41,11 +41,21 @@ export interface BookConfig {
   book: Book;
 }
 
+export type ModelId = "haiku" | "sonnet" | "opus";
+
 export interface Preferences {
   keysStored: boolean;
   theme: "paper" | "study";
-  defaultModel: "haiku" | "sonnet";
+  defaultModel: ModelId;
   autoSave: boolean;
+}
+
+export interface AIEdit {
+  id: string;
+  filePath: string;
+  original: string;
+  suggested: string;
+  status: "pending" | "accepted" | "rejected";
 }
 
 export interface ChatMessage {

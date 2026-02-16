@@ -14,7 +14,6 @@ import FocusMode from "@/components/editor/FocusMode";
 import PolishView from "@/components/editor/PolishView";
 import ContinueWriting from "@/components/editor/ContinueWriting";
 import SelectionToolbar from "@/components/editor/SelectionToolbar";
-import InlineSuggestionOverlay from "@/components/editor/InlineSuggestionOverlay";
 import MergeConflictEditor from "@/components/editor/MergeConflictEditor";
 import MergeConflictView from "@/components/editor/MergeConflictView";
 import type { MergeConflict } from "@/types";
@@ -288,7 +287,11 @@ export default function FilePage() {
   }, [repoInfo, keysStored, draftBranch, setStoreDraftBranch]);
 
   useEffect(function trackMouseDown() {
-    function onDown() { setMouseDown(true); setShowSelectionToolbar(false); }
+    function onDown(e: MouseEvent) {
+      if ((e.target as HTMLElement)?.closest?.("[data-selection-toolbar]")) return;
+      setMouseDown(true);
+      setShowSelectionToolbar(false);
+    }
     function onUp() {
       setMouseDown(false);
       setTimeout(function checkSelection() {
@@ -600,24 +603,97 @@ export default function FilePage() {
   }, []);
 
   var handleSuggestion = useCallback(function onSuggestion(data: SuggestionData) {
-    setSuggestion(data);
+    if (!editor) return;
     setShowSelectionToolbar(false);
-  }, []);
+    try {
+      var range = { anchor: data.anchor, focus: data.focus } as Range;
+      var newNodes = editor.api.markdown.deserialize(data.suggested);
+      if (!newNodes || newNodes.length === 0) return;
+      for (var k = 0; k < newNodes.length; k++) {
+        (newNodes[k] as any)._suggestion = true;
+      }
+      var originalBlocks = Array.from(
+        Editor.nodes(editor, {
+          at: range,
+          match: function matchBlock(n: any) {
+            return Editor.isBlock(editor, n);
+          },
+          mode: "highest",
+        })
+      );
+      if (originalBlocks.length === 0) return;
+      Editor.withoutNormalizing(editor, function batch() {
+        for (var i = 0; i < originalBlocks.length; i++) {
+          Transforms.setNodes(editor, { _suggestionOriginal: true } as any, { at: originalBlocks[i][1] });
+        }
+        var lastPath = originalBlocks[originalBlocks.length - 1][1];
+        Transforms.insertNodes(editor, newNodes, { at: Path.next(lastPath) });
+      });
+      setSuggestion(data);
+    } catch {}
+  }, [editor]);
 
   var handleSuggestionAccept = useCallback(function acceptSuggestion() {
-    if (!suggestion || !editor) return;
+    if (!editor) return;
     try {
-      var range = { anchor: suggestion.anchor, focus: suggestion.focus } as Range;
-      Transforms.select(editor, range);
-      Transforms.delete(editor);
-      Editor.insertText(editor, suggestion.suggested);
+      var originals = Array.from(
+        Editor.nodes(editor, {
+          at: [],
+          match: function matchOriginal(n: any) {
+            return Editor.isBlock(editor, n) && (n as any)._suggestionOriginal === true;
+          },
+          mode: "highest",
+        })
+      );
+      for (var i = originals.length - 1; i >= 0; i--) {
+        Transforms.removeNodes(editor, { at: originals[i][1] });
+      }
+      var newBlocks = Array.from(
+        Editor.nodes(editor, {
+          at: [],
+          match: function matchNew(n: any) {
+            return Editor.isBlock(editor, n) && (n as any)._suggestion === true;
+          },
+          mode: "highest",
+        })
+      );
+      for (var j = 0; j < newBlocks.length; j++) {
+        Transforms.unsetNodes(editor, "_suggestion", { at: newBlocks[j][1] });
+      }
     } catch {}
     setSuggestion(null);
-  }, [suggestion, editor]);
+  }, [editor]);
 
   var handleSuggestionReject = useCallback(function rejectSuggestion() {
+    if (!editor) return;
+    try {
+      var newBlocks = Array.from(
+        Editor.nodes(editor, {
+          at: [],
+          match: function matchNew(n: any) {
+            return Editor.isBlock(editor, n) && (n as any)._suggestion === true;
+          },
+          mode: "highest",
+        })
+      );
+      for (var i = newBlocks.length - 1; i >= 0; i--) {
+        Transforms.removeNodes(editor, { at: newBlocks[i][1] });
+      }
+      var originals = Array.from(
+        Editor.nodes(editor, {
+          at: [],
+          match: function matchOriginal(n: any) {
+            return Editor.isBlock(editor, n) && (n as any)._suggestionOriginal === true;
+          },
+          mode: "highest",
+        })
+      );
+      for (var j = 0; j < originals.length; j++) {
+        Transforms.unsetNodes(editor, "_suggestionOriginal", { at: originals[j][1] });
+      }
+    } catch {}
     setSuggestion(null);
-  }, []);
+  }, [editor]);
 
   var handleAddNote = useCallback(function addNote(quote: string) {
     var repoKey = currentBook || "default";
@@ -1039,16 +1115,8 @@ export default function FilePage() {
       initialContent={initialContent}
       onContentChange={handleContentChange}
       onEditor={handleEditorReady}
-    >
-      {!isPolishing && !isContinuing && showSelectionToolbar && editor && !suggestion && (
-        <SelectionToolbar
-          editor={editor}
-          onClose={handleToolbarClose}
-          onAddNote={handleAddNote}
-          onSuggestion={handleSuggestion}
-        />
-      )}
-    </PlateEditor>
+    />
+  
   );
 
   return (
@@ -1087,16 +1155,19 @@ export default function FilePage() {
         </div>
       )}
 
-      {suggestion && editor && (
-        <InlineSuggestionOverlay
-          editor={editor}
-          suggestion={suggestion}
-          onAccept={handleSuggestionAccept}
-          onReject={handleSuggestionReject}
-        />
-      )}
-
-      <div ref={scrollContainerRef} data-scriva-scroll style={{ flex: 1, overflowY: "auto" }}>
+      <div ref={scrollContainerRef} data-scriva-scroll style={{ flex: 1, overflowY: "auto", position: "relative" }}>
+        {!isPolishing && !isContinuing && (showSelectionToolbar || suggestion) && editor && scrollContainerRef.current && (
+          <SelectionToolbar
+            editor={editor}
+            scrollContainer={scrollContainerRef.current}
+            onClose={handleToolbarClose}
+            onAddNote={handleAddNote}
+            onSuggestion={handleSuggestion}
+            suggestion={suggestion}
+            onAcceptSuggestion={handleSuggestionAccept}
+            onRejectSuggestion={handleSuggestionReject}
+          />
+        )}
         {editorContent}
 
         {isContinuing && (

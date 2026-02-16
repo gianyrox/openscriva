@@ -14,14 +14,15 @@ export function buildSystemPrompt(
   return prompt;
 }
 
-export function getModelId(model: "haiku" | "sonnet"): string {
+export function getModelId(model: "haiku" | "sonnet" | "opus"): string {
   if (model === "haiku") return "claude-haiku-4-5";
+  if (model === "opus") return "claude-opus-4";
   return "claude-sonnet-4-5";
 }
 
 export async function streamChatCompletion(params: {
   apiKey: string;
-  model: "haiku" | "sonnet";
+  model: "haiku" | "sonnet" | "opus";
   systemPrompt: string;
   messages: { role: "user" | "assistant"; content: string }[];
   onChunk: (text: string) => void;

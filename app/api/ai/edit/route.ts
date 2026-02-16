@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing API key" }, { status: 401 });
     }
 
-    const model: "haiku" | "sonnet" = body.model || "sonnet";
+    const model: "haiku" | "sonnet" | "opus" = body.model || "sonnet";
     const contexts: { type: string; content: string }[] = body.contexts || [];
 
     let systemPrompt: string;

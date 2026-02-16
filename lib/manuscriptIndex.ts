@@ -33,7 +33,7 @@ export function saveManuscriptIndex(repoKey: string, index: ManuscriptIndex): vo
 
 export function estimateIndexCost(
   chapters: { id: string; content: string }[],
-  model: "haiku" | "sonnet",
+  model: "haiku" | "sonnet" | "opus",
 ): { tokens: number; cost: number; formatted: string } {
   let totalTokens = 0;
   for (let i = 0; i < chapters.length; i++) {
@@ -50,7 +50,7 @@ export function estimateIndexCost(
 
 export function estimateSingleChapterCost(
   content: string,
-  model: "haiku" | "sonnet",
+  model: "haiku" | "sonnet" | "opus",
 ): { tokens: number; cost: number; formatted: string } {
   const tokens = estimateTokens(content) + 200;
   const cost = estimateCost(tokens, model);

@@ -16,7 +16,7 @@ export interface ContinuityReport {
 
 export function estimateContinuityCost(
   index: ManuscriptIndex,
-  model: "haiku" | "sonnet",
+  model: "haiku" | "sonnet" | "opus",
 ): { tokens: number; cost: number; formatted: string } {
   let indexText = "";
   for (const ch of index.chapters) {

@@ -32,7 +32,7 @@ export function saveVoiceProfile(repoKey: string, profile: VoiceProfile): void {
 
 export function estimateVoiceCost(
   chapters: { id: string; content: string }[],
-  model: "haiku" | "sonnet",
+  model: "haiku" | "sonnet" | "opus",
 ): { tokens: number; cost: number; formatted: string } {
   let totalTokens = 0;
   const selected = chapters.slice(0, 5);

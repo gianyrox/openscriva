@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Plus, Clipboard, Trash2, X, StickyNote, FileText } from "lucide-react";
+import { Plus, Clipboard, X, StickyNote, FileText, MessageSquare, ChevronDown, Trash2 } from "lucide-react";
 import { useAppStore } from "@/store";
 
 interface Note {
@@ -13,7 +13,13 @@ interface Note {
   ts: number;
 }
 
-const actionBtnStyle: React.CSSProperties = {
+interface Notepad {
+  id: string;
+  name: string;
+  createdAt: number;
+}
+
+var actionBtnStyle: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
@@ -26,21 +32,41 @@ const actionBtnStyle: React.CSSProperties = {
   cursor: "pointer",
 };
 
-function storageKey(repoKey: string): string {
-  return `scriva:notes:${repoKey}`;
+function notepadIndexKey(repoKey: string): string {
+  return "scriva:notepads:" + repoKey;
 }
 
-function loadNotes(repoKey: string): Note[] {
+function notesStorageKey(repoKey: string, notepadId: string): string {
+  return "scriva:notes:" + repoKey + ":" + notepadId;
+}
+
+function loadNotepads(repoKey: string): Notepad[] {
   try {
-    var raw = localStorage.getItem(storageKey(repoKey));
+    var raw = localStorage.getItem(notepadIndexKey(repoKey));
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }
 }
 
-function saveNotes(repoKey: string, notes: Note[]): void {
-  localStorage.setItem(storageKey(repoKey), JSON.stringify(notes));
+function saveNotepads(repoKey: string, pads: Notepad[]) {
+  localStorage.setItem(notepadIndexKey(repoKey), JSON.stringify(pads));
+}
+
+function loadNotes(repoKey: string, notepadId: string): Note[] {
+  try {
+    var raw = localStorage.getItem(notesStorageKey(repoKey, notepadId));
+    if (raw) return JSON.parse(raw);
+    var legacyRaw = localStorage.getItem("scriva:notes:" + repoKey);
+    if (legacyRaw) return JSON.parse(legacyRaw);
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+function saveNotes(repoKey: string, notepadId: string, notes: Note[]) {
+  localStorage.setItem(notesStorageKey(repoKey, notepadId), JSON.stringify(notes));
   window.dispatchEvent(new CustomEvent("scriva:notes-updated"));
 }
 
@@ -55,27 +81,62 @@ function formatTime(ts: number): string {
   return months[d.getMonth()] + " " + d.getDate() + ", " + h + ":" + mm + " " + ampm;
 }
 
+function createNotepad(name?: string): Notepad {
+  return {
+    id: "pad-" + Date.now() + "-" + Math.random().toString(36).substring(2, 7),
+    name: name || "Notepad " + (Date.now() % 1000),
+    createdAt: Date.now(),
+  };
+}
+
 export default function NotesPanel() {
   var repoKey = useAppStore(function (s) {
     return s.editor.currentBook;
   }) || "default";
+  var setRightTab = useAppStore(function (s) {
+    return s.setRightTab;
+  });
+
+  var [notepads, setNotepads] = useState<Notepad[]>([]);
+  var [activepadId, setActivepadId] = useState<string>("");
   var [notes, setNotes] = useState<Note[]>([]);
   var [toast, setToast] = useState("");
+  var [padListOpen, setPadListOpen] = useState(false);
+  var [editingName, setEditingName] = useState(false);
+  var [editName, setEditName] = useState("");
   var listRef = useRef<HTMLDivElement>(null);
+  var padRef = useRef<HTMLDivElement>(null);
 
-  useEffect(
-    function init() {
-      setNotes(loadNotes(repoKey));
-      function onUpdated() {
-        setNotes(loadNotes(repoKey));
-      }
-      window.addEventListener("scriva:notes-updated", onUpdated);
-      return function cleanup() {
-        window.removeEventListener("scriva:notes-updated", onUpdated);
-      };
-    },
-    [repoKey]
-  );
+  useEffect(function init() {
+    var pads = loadNotepads(repoKey);
+    if (pads.length === 0) {
+      var first = createNotepad("Notepad 1");
+      pads = [first];
+      saveNotepads(repoKey, pads);
+    }
+    setNotepads(pads);
+    setActivepadId(pads[0].id);
+  }, [repoKey]);
+
+  useEffect(function loadNotesForPad() {
+    if (!activepadId) return;
+    setNotes(loadNotes(repoKey, activepadId));
+    function onUpdated() {
+      setNotes(loadNotes(repoKey, activepadId));
+    }
+    window.addEventListener("scriva:notes-updated", onUpdated);
+    return function cleanup() {
+      window.removeEventListener("scriva:notes-updated", onUpdated);
+    };
+  }, [repoKey, activepadId]);
+
+  useEffect(function closePadList() {
+    function handler(e: MouseEvent) {
+      if (padRef.current && !padRef.current.contains(e.target as Node)) setPadListOpen(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return function cleanup() { document.removeEventListener("mousedown", handler); };
+  }, []);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -96,10 +157,53 @@ export default function NotesPanel() {
     }
   }
 
+  function handleNewNotepad() {
+    var count = notepads.length + 1;
+    var pad = createNotepad("Notepad " + count);
+    var updated = [pad, ...notepads];
+    setNotepads(updated);
+    saveNotepads(repoKey, updated);
+    setActivepadId(pad.id);
+    setNotes([]);
+    setPadListOpen(false);
+  }
+
+  function handleSwitchNotepad(padId: string) {
+    setActivepadId(padId);
+    setPadListOpen(false);
+  }
+
+  function handleDeleteNotepad(padId: string) {
+    var updated = notepads.filter(function f(p) { return p.id !== padId; });
+    if (updated.length === 0) {
+      var fresh = createNotepad("Notepad 1");
+      updated = [fresh];
+    }
+    setNotepads(updated);
+    saveNotepads(repoKey, updated);
+    localStorage.removeItem(notesStorageKey(repoKey, padId));
+    if (padId === activepadId) {
+      setActivepadId(updated[0].id);
+    }
+  }
+
+  function handleRenameNotepad() {
+    if (!editName.trim()) {
+      setEditingName(false);
+      return;
+    }
+    var updated = notepads.map(function f(p) {
+      return p.id === activepadId ? { ...p, name: editName.trim() } : p;
+    });
+    setNotepads(updated);
+    saveNotepads(repoKey, updated);
+    setEditingName(false);
+  }
+
   function handleAddBlank() {
     var id = "note-" + Date.now() + "-" + Math.random().toString(36).substring(2, 7);
     var newNote: Note = {
-      id,
+      id: id,
       filePath: "",
       chapter: "General",
       quote: "",
@@ -108,7 +212,7 @@ export default function NotesPanel() {
     };
     var next = [...notes, newNote];
     setNotes(next);
-    saveNotes(repoKey, next);
+    saveNotes(repoKey, activepadId, next);
     scrollToNote(id);
     setTimeout(function () {
       var textarea = listRef.current?.querySelector('[data-note-id="' + id + '"] textarea');
@@ -120,10 +224,10 @@ export default function NotesPanel() {
 
   function handleUpdateNote(id: string, text: string) {
     var next = notes.map(function (n) {
-      return n.id === id ? { ...n, text } : n;
+      return n.id === id ? { ...n, text: text } : n;
     });
     setNotes(next);
-    saveNotes(repoKey, next);
+    saveNotes(repoKey, activepadId, next);
   }
 
   function handleDeleteNote(id: string) {
@@ -131,16 +235,18 @@ export default function NotesPanel() {
       return n.id !== id;
     });
     setNotes(next);
-    saveNotes(repoKey, next);
+    saveNotes(repoKey, activepadId, next);
     showToast("Note deleted");
   }
 
-  function handleClearAll() {
-    if (confirm("Delete all notes?")) {
-      setNotes([]);
-      saveNotes(repoKey, []);
-      showToast("All notes cleared");
-    }
+  function handleAddToChat(note: Note) {
+    var text = "";
+    if (note.quote) text += "> " + note.quote.substring(0, 200) + "\n\n";
+    if (note.text) text += note.text;
+    if (!text.trim()) return;
+    window.dispatchEvent(new CustomEvent("scriva:add-note-to-chat", { detail: { text: text.trim() } }));
+    setRightTab("chat" as any);
+    showToast("Added to chat");
   }
 
   function handleExport() {
@@ -163,6 +269,8 @@ export default function NotesPanel() {
     navigator.clipboard.writeText(lines.join("\n"));
     showToast("Notes copied to clipboard");
   }
+
+  var activePad = notepads.find(function f(p) { return p.id === activepadId; });
 
   return (
     <div
@@ -202,15 +310,171 @@ export default function NotesPanel() {
           >
             <Clipboard size={14} />
           </button>
-          <button
-            title="Clear all"
-            onClick={handleClearAll}
-            disabled={notes.length === 0}
-            style={actionBtnStyle}
-          >
-            <Trash2 size={14} />
-          </button>
         </div>
+      </div>
+
+      <div
+        ref={padRef}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          padding: "4px 12px",
+          borderBottom: "1px solid var(--color-border)",
+          flexShrink: 0,
+          position: "relative",
+          gap: 4,
+        }}
+      >
+        <StickyNote size={11} style={{ color: "var(--color-text-muted)", flexShrink: 0 }} />
+        {editingName ? (
+          <input
+            value={editName}
+            onChange={function handleChange(e) { setEditName(e.target.value); }}
+            onBlur={handleRenameNotepad}
+            onKeyDown={function handleKey(e) { if (e.key === "Enter") handleRenameNotepad(); if (e.key === "Escape") setEditingName(false); }}
+            autoFocus
+            style={{
+              flex: 1,
+              padding: "2px 4px",
+              fontSize: 11,
+              fontFamily: "inherit",
+              border: "1px solid var(--color-accent)",
+              borderRadius: 4,
+              backgroundColor: "var(--color-bg)",
+              color: "var(--color-text)",
+              outline: "none",
+            }}
+          />
+        ) : (
+          <button
+            onClick={function toggle() { setPadListOpen(!padListOpen); }}
+            onDoubleClick={function startRename() {
+              setEditingName(true);
+              setEditName(activePad?.name || "");
+            }}
+            style={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "2px 4px",
+              fontSize: 11,
+              fontFamily: "inherit",
+              border: "none",
+              background: "transparent",
+              color: "var(--color-text)",
+              cursor: "pointer",
+              borderRadius: 4,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              textAlign: "left",
+            }}
+          >
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+              {activePad?.name || "Notepad"}
+            </span>
+            <ChevronDown size={10} style={{ flexShrink: 0, transform: padListOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 150ms" }} />
+          </button>
+        )}
+        <button
+          onClick={handleNewNotepad}
+          title="New notepad"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 20,
+            height: 20,
+            border: "none",
+            background: "transparent",
+            color: "var(--color-text-muted)",
+            cursor: "pointer",
+            borderRadius: 3,
+            flexShrink: 0,
+          }}
+        >
+          <Plus size={11} />
+        </button>
+        {padListOpen && (
+          <div
+            style={{
+              position: "absolute",
+              top: "100%",
+              left: 0,
+              right: 0,
+              marginTop: 2,
+              backgroundColor: "var(--color-surface)",
+              border: "1px solid var(--color-border)",
+              borderRadius: 8,
+              boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+              padding: 4,
+              zIndex: 50,
+              maxHeight: 200,
+              overflowY: "auto",
+            }}
+          >
+            {notepads.map(function renderPad(pad) {
+              var isActive = pad.id === activepadId;
+              return (
+                <div
+                  key={pad.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    borderRadius: 4,
+                  }}
+                  onMouseEnter={function hover(e) { e.currentTarget.style.backgroundColor = "var(--color-surface-hover)"; }}
+                  onMouseLeave={function unhover(e) { e.currentTarget.style.backgroundColor = "transparent"; }}
+                >
+                  <button
+                    onClick={function switchPad() { handleSwitchNotepad(pad.id); }}
+                    style={{
+                      flex: 1,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "6px 10px",
+                      fontSize: 12,
+                      fontFamily: "inherit",
+                      fontWeight: isActive ? 600 : 400,
+                      color: isActive ? "var(--color-accent)" : "var(--color-text)",
+                      border: "none",
+                      background: "transparent",
+                      cursor: "pointer",
+                      borderRadius: 4,
+                      textAlign: "left",
+                    }}
+                  >
+                    {pad.name}
+                  </button>
+                  {notepads.length > 1 && (
+                    <button
+                      onClick={function del(e) { e.stopPropagation(); handleDeleteNotepad(pad.id); }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 20,
+                        height: 20,
+                        border: "none",
+                        background: "transparent",
+                        color: "var(--color-text-muted)",
+                        cursor: "pointer",
+                        borderRadius: 3,
+                        flexShrink: 0,
+                        marginRight: 4,
+                      }}
+                    >
+                      <Trash2 size={11} />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div
@@ -348,13 +612,51 @@ export default function NotesPanel() {
 
               <div
                 style={{
-                  fontSize: 10,
-                  color: "var(--color-text-muted)",
-                  marginTop: 4,
-                  opacity: 0.7,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginTop: 6,
                 }}
               >
-                {formatTime(note.ts)}
+                <span
+                  style={{
+                    fontSize: 10,
+                    color: "var(--color-text-muted)",
+                    opacity: 0.7,
+                  }}
+                >
+                  {formatTime(note.ts)}
+                </span>
+                <button
+                  onClick={function addChat() { handleAddToChat(note); }}
+                  title="Add to chat"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 3,
+                    padding: "2px 8px",
+                    fontSize: 10,
+                    fontFamily: "inherit",
+                    fontWeight: 500,
+                    border: "1px solid var(--color-border)",
+                    borderRadius: 4,
+                    backgroundColor: "transparent",
+                    color: "var(--color-text-muted)",
+                    cursor: "pointer",
+                    transition: "color 150ms, border-color 150ms",
+                  }}
+                  onMouseEnter={function hover(e) {
+                    e.currentTarget.style.color = "var(--color-accent)";
+                    e.currentTarget.style.borderColor = "var(--color-accent)";
+                  }}
+                  onMouseLeave={function unhover(e) {
+                    e.currentTarget.style.color = "var(--color-text-muted)";
+                    e.currentTarget.style.borderColor = "var(--color-border)";
+                  }}
+                >
+                  <MessageSquare size={10} />
+                  Add to Chat
+                </button>
               </div>
 
               <button

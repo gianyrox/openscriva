@@ -6,6 +6,7 @@ import type {
   PanelState,
   EditorState,
   MergeConflict,
+  AIEdit,
 } from "@/types";
 
 interface ReviewPR {
@@ -27,6 +28,8 @@ interface AppState {
   preferences: Preferences;
   mergeConflicts: MergeConflict[];
   reviewPR: ReviewPR | null;
+  pendingAIEdits: AIEdit[];
+  showAIEditReview: boolean;
 
   setChapter: (chapterId: string | undefined) => void;
   setBook: (bookId: string | undefined) => void;
@@ -35,6 +38,11 @@ interface AppState {
   setWordCount: (count: number) => void;
   setMergeConflicts: (conflicts: MergeConflict[]) => void;
   setReviewPR: (pr: ReviewPR | null) => void;
+  setPendingAIEdits: (edits: AIEdit[]) => void;
+  addAIEdit: (edit: AIEdit) => void;
+  updateAIEditStatus: (id: string, status: AIEdit["status"]) => void;
+  clearAIEdits: () => void;
+  setShowAIEditReview: (show: boolean) => void;
   toggleMarkdownView: () => void;
   toggleFocusMode: () => void;
   toggleLeftPanel: () => void;
@@ -60,6 +68,8 @@ export const useAppStore = create<AppState>()(
 
         mergeConflicts: [],
         reviewPR: null,
+        pendingAIEdits: [],
+        showAIEditReview: false,
 
         panels: {
           leftOpen: true,
@@ -121,6 +131,34 @@ export const useAppStore = create<AppState>()(
 
         setReviewPR: function setReviewPR(pr) {
           set({ reviewPR: pr });
+        },
+
+        setPendingAIEdits: function setPendingAIEdits(edits) {
+          set({ pendingAIEdits: edits });
+        },
+
+        addAIEdit: function addAIEdit(edit) {
+          set(function appendEdit(state) {
+            return { pendingAIEdits: [...state.pendingAIEdits, edit] };
+          });
+        },
+
+        updateAIEditStatus: function updateAIEditStatus(id, status) {
+          set(function patchEdit(state) {
+            return {
+              pendingAIEdits: state.pendingAIEdits.map(function mapEdit(e) {
+                return e.id === id ? { ...e, status: status } : e;
+              }),
+            };
+          });
+        },
+
+        clearAIEdits: function clearAIEdits() {
+          set({ pendingAIEdits: [] });
+        },
+
+        setShowAIEditReview: function setShowAIEditReview(show) {
+          set({ showAIEditReview: show });
         },
 
         toggleMarkdownView: function toggleMarkdownView() {
