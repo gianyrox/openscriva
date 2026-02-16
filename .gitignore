@@ -34,3 +34,4 @@ next-env.d.ts
 
 # waitlist data
 waitlist.json
+.env.local

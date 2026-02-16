@@ -90,7 +90,7 @@ Be honest but constructive. Scores should reflect genuine quality assessment.`;
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const apiKey = getAnthropicKey(request);
+    const apiKey = await getAnthropicKey(request);
 
     if (!apiKey) {
       return NextResponse.json({ error: "Missing API key" }, { status: 401 });

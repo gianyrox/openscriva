@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
 import { useAppStore } from "@/store";
 import { X, Loader2, BookOpen } from "lucide-react";
 import BookCard from "@/components/shelf/BookCard";
@@ -134,6 +135,13 @@ export default function ShelfPage() {
   }
 
   function handleSelectRepo(repo: ShelfBook) {
+    // Track book opened event
+    posthog.capture("book_opened", {
+      book_name: repo.name,
+      book_full_name: repo.full_name,
+      is_private: repo.private,
+    });
+
     const bookData = {
       name: repo.name,
       full_name: repo.full_name,
@@ -211,6 +219,14 @@ export default function ShelfPage() {
         setNewTitle("");
         setNewDescription("");
         setCreating(false);
+
+        // Track book created event
+        posthog.capture("book_created", {
+          book_name: repo.name,
+          book_full_name: repo.full_name,
+          is_private: repo.private,
+          has_description: Boolean(repo.description),
+        });
 
         addBookToShelf(repo);
 

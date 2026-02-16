@@ -4,7 +4,7 @@ import { getGithubToken } from "@/lib/keys";
 
 export async function GET(request: NextRequest) {
   try {
-    const token = getGithubToken(request);
+    const token = await getGithubToken(request);
     const { searchParams } = new URL(request.url);
     const owner = searchParams.get("owner");
     const repo = searchParams.get("repo");
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const token = getGithubToken(request);
+    const token = await getGithubToken(request);
 
     if (!token) {
       return NextResponse.json(
@@ -87,7 +87,7 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const token = getGithubToken(request);
+    const token = await getGithubToken(request);
 
     if (!token) {
       return NextResponse.json(

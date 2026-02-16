@@ -6,7 +6,7 @@ import { getAnthropicKey } from "@/lib/keys";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const apiKey = getAnthropicKey(request);
+    const apiKey = await getAnthropicKey(request);
 
     if (!apiKey) {
       return NextResponse.json({ error: "Missing API key" }, { status: 401 });

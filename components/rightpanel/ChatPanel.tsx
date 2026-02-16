@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import posthog from "posthog-js";
 import { useAppStore } from "@/store";
 import { getItem, setItem } from "@/lib/storage";
 import { estimateTokens, formatTokenCount } from "@/lib/tokens";
@@ -419,6 +420,12 @@ export default function ChatPanel() {
           timestamp: Date.now(),
         };
         persistMessages([...updatedMessages, assistantMsg]);
+
+        // Track revision plan generated
+        posthog.capture("revision_plan_generated", {
+          notes_count: revisionNotes.length,
+          plan_length: fullResponse.length,
+        });
       }
     } catch (err: unknown) {
       var errorMsg: ChatMessage = {
@@ -535,6 +542,12 @@ export default function ChatPanel() {
           message: "Add research: " + slug,
         }),
       });
+
+      // Track research saved
+      posthog.capture("research_saved", {
+        research_topic: slug,
+        content_length: lastAssistant.content.length,
+      });
     } catch {
     } finally {
       setSavingResearch(false);
@@ -579,6 +592,14 @@ export default function ChatPanel() {
     setInput("");
     setStreaming(true);
     setStreamText("");
+
+    // Track AI chat message sent
+    posthog.capture("ai_chat_sent", {
+      mode: mode,
+      model: model,
+      message_length: text.length,
+      is_first_message: messages.length === 0,
+    });
 
     if (messages.length === 0 && conversations.length > 0) {
       var convName = text.substring(0, 50);

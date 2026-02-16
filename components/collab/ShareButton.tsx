@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { UserPlus, Send, X, Check, AlertCircle } from "lucide-react";
+import posthog from "posthog-js";
 import { useAppStore } from "@/store";
 
 interface ShareButtonProps {
@@ -55,6 +56,11 @@ export default function ShareButton({ owner, repo }: ShareButtonProps) {
           if (data.already_collaborator) {
             setResult({ type: "success", message: `@${username.trim()} is already a collaborator` });
           } else {
+            // Track successful collaboration invitation
+            posthog.capture("collaborator_invited", {
+              repo: owner + "/" + repo,
+              is_new_collaborator: true,
+            });
             setResult({ type: "success", message: `Invitation sent to @${username.trim()}` });
           }
           setUsername("");

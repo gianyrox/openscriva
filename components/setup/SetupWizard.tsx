@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronRight, ChevronLeft } from "lucide-react";
+import posthog from "posthog-js";
 import { useAppStore } from "@/store";
 import type { BookConfig } from "@/types";
 import ApiKeyStep from "./ApiKeyStep";
@@ -100,8 +101,21 @@ export default function SetupWizard() {
       };
       localStorage.setItem("scriva-current-book", JSON.stringify(currentBook));
 
+      // Track setup completion with PostHog
+      posthog.capture("setup_completed", {
+        has_book_selected: true,
+        book_name: bookConfig.repo,
+        book_owner: bookConfig.owner,
+        is_new_book: !exists,
+      });
+
       router.push("/book");
     } else {
+      // Track setup completion without book selection
+      posthog.capture("setup_completed", {
+        has_book_selected: false,
+      });
+
       router.push("/shelf");
     }
   }

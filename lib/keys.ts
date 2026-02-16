@@ -2,9 +2,9 @@ import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 import { decrypt } from "./crypto";
 
-function getKeys(): { anthropicKey: string; githubToken: string } | null {
+async function getKeys(): Promise<{ anthropicKey: string; githubToken: string } | null> {
   try {
-    const store = cookies();
+    const store = await cookies();
     const cookie = store.get("scriva-keys");
     if (!cookie) return null;
     return JSON.parse(decrypt(cookie.value));
@@ -13,14 +13,14 @@ function getKeys(): { anthropicKey: string; githubToken: string } | null {
   }
 }
 
-export function getAnthropicKey(request: NextRequest): string | null {
-  const keys = getKeys();
+export async function getAnthropicKey(request: NextRequest): Promise<string | null> {
+  const keys = await getKeys();
   if (keys?.anthropicKey) return keys.anthropicKey;
   return request.headers.get("x-anthropic-key");
 }
 
-export function getGithubToken(request: NextRequest): string | null {
-  const keys = getKeys();
+export async function getGithubToken(request: NextRequest): Promise<string | null> {
+  const keys = await getKeys();
   if (keys?.githubToken) return keys.githubToken;
   return request.headers.get("x-github-token");
 }

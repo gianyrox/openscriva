@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Check, X } from "lucide-react";
+import posthog from "posthog-js";
 import { useAppStore } from "@/store";
 
 interface ContinueWritingProps {
@@ -172,6 +173,10 @@ export default function ContinueWriting({ precedingText, onAccept, onReject }: C
       >
         <button
           onClick={function accept() {
+            posthog.capture("ai_continue_accepted", {
+              text_length: result.length,
+              model: preferences.defaultModel,
+            });
             onAccept(result);
           }}
           title="Accept (Enter)"

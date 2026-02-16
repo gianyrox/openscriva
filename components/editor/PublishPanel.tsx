@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { X, BookOpen, FileText, Archive, Loader2, Download, ExternalLink } from "lucide-react";
+import posthog from "posthog-js";
 import { useAppStore } from "@/store";
 import { getItem } from "@/lib/storage";
 import { getFileContent } from "@/lib/github";
@@ -164,6 +165,12 @@ export default function PublishPanel({ open, onClose }: PublishPanelProps) {
         return { ...s, epub: "loading" };
       });
 
+      // Track export started
+      posthog.capture("export_started", {
+        format: "epub",
+        book_title: book?.title,
+      });
+
       const chapters = await fetchAllChapters();
 
       const response = await fetch("/api/export/epub", {
@@ -191,10 +198,18 @@ export default function PublishPanel({ open, onClose }: PublishPanelProps) {
       const safeName = (book!.title || "book").replace(/[^a-zA-Z0-9 ]/g, "");
       downloadBlob(blob, safeName + ".epub");
 
+      // Track export completed
+      posthog.capture("export_completed", {
+        format: "epub",
+        book_title: book?.title,
+        chapter_count: chapters.length,
+      });
+
       setExportState(function set(s) {
         return { ...s, epub: "done" };
       });
-    } catch {
+    } catch (err) {
+      posthog.captureException(err);
       setExportState(function set(s) {
         return { ...s, epub: "error" };
       });
@@ -205,6 +220,12 @@ export default function PublishPanel({ open, onClose }: PublishPanelProps) {
     try {
       setExportState(function set(s) {
         return { ...s, pdf: "loading" };
+      });
+
+      // Track export started
+      posthog.capture("export_started", {
+        format: "pdf",
+        book_title: book?.title,
       });
 
       const chapters = await fetchAllChapters();
@@ -265,10 +286,18 @@ export default function PublishPanel({ open, onClose }: PublishPanelProps) {
       const safeName = (book?.title || "manuscript").replace(/[^a-zA-Z0-9 ]/g, "");
       downloadBlob(blob, safeName + ".pdf");
 
+      // Track export completed
+      posthog.capture("export_completed", {
+        format: "pdf",
+        book_title: book?.title,
+        chapter_count: chapters.length,
+      });
+
       setExportState(function set(s) {
         return { ...s, pdf: "done" };
       });
-    } catch {
+    } catch (err) {
+      posthog.captureException(err);
       setExportState(function set(s) {
         return { ...s, pdf: "error" };
       });
@@ -279,6 +308,12 @@ export default function PublishPanel({ open, onClose }: PublishPanelProps) {
     try {
       setExportState(function set(s) {
         return { ...s, markdown: "loading" };
+      });
+
+      // Track export started
+      posthog.capture("export_started", {
+        format: "markdown",
+        book_title: book?.title,
       });
 
       const chapters = await fetchAllChapters();
@@ -304,10 +339,18 @@ export default function PublishPanel({ open, onClose }: PublishPanelProps) {
         .replace(/\s+/g, "-");
       downloadBlob(blob, safeName + "-manuscript.zip");
 
+      // Track export completed
+      posthog.capture("export_completed", {
+        format: "markdown",
+        book_title: book?.title,
+        chapter_count: chapters.length,
+      });
+
       setExportState(function set(s) {
         return { ...s, markdown: "done" };
       });
-    } catch {
+    } catch (err) {
+      posthog.captureException(err);
       setExportState(function set(s) {
         return { ...s, markdown: "error" };
       });

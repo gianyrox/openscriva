@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  turbopack: {},
+  serverExternalPackages: ["puppeteer"],
   transpilePackages: [
     "platejs",
     "@platejs/basic-nodes",
@@ -16,13 +18,19 @@ const nextConfig = {
     "@platejs/combobox",
     "@platejs/caption",
   ],
-  webpack: function configureWebpack(config, { isServer }) {
-    if (isServer) {
-      config.externals = config.externals || [];
-      config.externals.push("puppeteer");
-    }
-    return config;
+  async rewrites() {
+    return [
+      {
+        source: "/ingest/static/:path*",
+        destination: "https://us-assets.i.posthog.com/static/:path*",
+      },
+      {
+        source: "/ingest/:path*",
+        destination: "https://us.i.posthog.com/:path*",
+      },
+    ];
   },
+  skipTrailingSlashRedirect: true,
 };
 
 export default nextConfig;

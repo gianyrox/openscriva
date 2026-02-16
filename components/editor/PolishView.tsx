@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { CheckCircle, ArrowLeft } from "lucide-react";
+import posthog from "posthog-js";
 import { useAppStore } from "@/store";
 import { computeDiff, applyChanges } from "@/lib/diff";
 import DiffView from "./DiffView";
@@ -154,6 +155,14 @@ export default function PolishView({ content, onComplete, onCancel }: PolishView
   }, []);
 
   function handleDone() {
+    // Track polish completion
+    posthog.capture("ai_polish_completed", {
+      total_changes: totalChanges,
+      accepted_count: acceptedCount,
+      rejected_count: rejectedCount,
+      acceptance_rate: totalChanges > 0 ? (acceptedCount / totalChanges * 100).toFixed(1) : 0,
+    });
+
     const result = applyChanges(content, changes, accepted);
     onComplete(result);
   }

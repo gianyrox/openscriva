@@ -6,7 +6,7 @@ import { getGithubToken } from "@/lib/keys";
 
 export async function GET(request: NextRequest) {
   try {
-    const token = getGithubToken(request);
+    const token = await getGithubToken(request);
 
     if (!token) {
       return NextResponse.json(
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const token = getGithubToken(request);
+    const token = await getGithubToken(request);
 
     if (!token) {
       return NextResponse.json(
@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const token = getGithubToken(request);
+    const token = await getGithubToken(request);
 
     if (!token) {
       return NextResponse.json(

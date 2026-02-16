@@ -4,7 +4,7 @@ import { decrypt } from "@/lib/crypto";
 
 export async function GET() {
   try {
-    const store = cookies();
+    const store = await cookies();
     const cookie = store.get("scriva-keys");
 
     if (!cookie) {

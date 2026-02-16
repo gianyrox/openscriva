@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { readFile, writeFile } from "fs/promises";
 import { join } from "path";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 const WAITLIST_PATH = join(process.cwd(), "waitlist.json");
 
@@ -54,6 +55,25 @@ export async function POST(request: Request) {
 
     entries.push({ email, timestamp: new Date().toISOString() });
     await writeWaitlist(entries);
+
+    // Track waitlist signup with PostHog
+    const posthog = getPostHogClient();
+    posthog.capture({
+      distinctId: email,
+      event: "waitlist_joined",
+      properties: {
+        position: entries.length,
+        source: "landing_page",
+      },
+    });
+    posthog.identify({
+      distinctId: email,
+      properties: {
+        email: email,
+        waitlist_position: entries.length,
+        joined_waitlist_at: new Date().toISOString(),
+      },
+    });
 
     return NextResponse.json({
       success: true,
