@@ -1,7 +1,7 @@
 "use client";
 
-import type { Editor } from "@tiptap/react";
 import { useAppStore } from "@/store";
+import { Editor, Element } from "slate";
 import {
   Bold,
   Italic,
@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 
 interface EditorToolbarProps {
-  editor: Editor | null;
+  editor: any | null;
 }
 
 interface ToolbarButtonProps {
@@ -64,19 +64,73 @@ function ToolbarButton({ icon, isActive, onClick, title }: ToolbarButtonProps) {
   );
 }
 
+function isMarkActive(editor: any, mark: string): boolean {
+  try {
+    var marks = Editor.marks(editor);
+    return !!(marks as any)?.[mark];
+  } catch {
+    return false;
+  }
+}
+
+function isBlockActive(editor: any, type: string): boolean {
+  try {
+    var nodes = Array.from(
+      Editor.nodes(editor, {
+        match: function matchBlock(n: any) {
+          return !Editor.isEditor(n) && Element.isElement(n) && (n as any).type === type;
+        },
+      })
+    );
+    return nodes.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+function toggleMark(editor: any, mark: string) {
+  try {
+    var marks = Editor.marks(editor);
+    if ((marks as any)?.[mark]) {
+      Editor.removeMark(editor, mark);
+    } else {
+      Editor.addMark(editor, mark, true);
+    }
+  } catch {}
+}
+
+function toggleBlock(editor: any, type: string) {
+  try {
+    var isActive = isBlockActive(editor, type);
+    var { Transforms } = require("slate");
+    if (isActive) {
+      Transforms.setNodes(editor, { type: "p" } as any);
+    } else {
+      Transforms.setNodes(editor, { type } as any);
+    }
+  } catch {}
+}
+
 export default function EditorToolbar({ editor }: EditorToolbarProps) {
-  const isMarkdownView = useAppStore(function selectMarkdownView(s) {
+  var isMarkdownView = useAppStore(function selectMarkdownView(s) {
     return s.editor.isMarkdownView;
   });
-  const toggleMarkdownView = useAppStore(function selectToggleMd(s) {
+  var toggleMarkdownView = useAppStore(function selectToggleMd(s) {
     return s.toggleMarkdownView;
   });
 
   function handleImage() {
     if (!editor) return;
-    const url = window.prompt("Image URL:");
+    var url = window.prompt("Image URL:");
     if (url) {
-      editor.chain().focus().setImage({ src: url }).run();
+      try {
+        var { Transforms } = require("slate");
+        Transforms.insertNodes(editor, {
+          type: "img",
+          url: url,
+          children: [{ text: "" }],
+        } as any);
+      } catch {}
     }
   }
 
@@ -99,26 +153,20 @@ export default function EditorToolbar({ editor }: EditorToolbarProps) {
     >
       <ToolbarButton
         icon={<Bold size={15} />}
-        isActive={editor.isActive("bold")}
-        onClick={function toggleBold() {
-          editor.chain().focus().toggleBold().run();
-        }}
+        isActive={isMarkActive(editor, "bold")}
+        onClick={function clickBold() { toggleMark(editor, "bold"); }}
         title="Bold"
       />
       <ToolbarButton
         icon={<Italic size={15} />}
-        isActive={editor.isActive("italic")}
-        onClick={function toggleItalic() {
-          editor.chain().focus().toggleItalic().run();
-        }}
+        isActive={isMarkActive(editor, "italic")}
+        onClick={function clickItalic() { toggleMark(editor, "italic"); }}
         title="Italic"
       />
       <ToolbarButton
         icon={<Strikethrough size={15} />}
-        isActive={editor.isActive("strike")}
-        onClick={function toggleStrike() {
-          editor.chain().focus().toggleStrike().run();
-        }}
+        isActive={isMarkActive(editor, "strikethrough")}
+        onClick={function clickStrike() { toggleMark(editor, "strikethrough"); }}
         title="Strikethrough"
       />
 
@@ -133,26 +181,20 @@ export default function EditorToolbar({ editor }: EditorToolbarProps) {
 
       <ToolbarButton
         icon={<Heading1 size={15} />}
-        isActive={editor.isActive("heading", { level: 1 })}
-        onClick={function toggleH1() {
-          editor.chain().focus().toggleHeading({ level: 1 }).run();
-        }}
+        isActive={isBlockActive(editor, "h1")}
+        onClick={function clickH1() { toggleBlock(editor, "h1"); }}
         title="Heading 1"
       />
       <ToolbarButton
         icon={<Heading2 size={15} />}
-        isActive={editor.isActive("heading", { level: 2 })}
-        onClick={function toggleH2() {
-          editor.chain().focus().toggleHeading({ level: 2 }).run();
-        }}
+        isActive={isBlockActive(editor, "h2")}
+        onClick={function clickH2() { toggleBlock(editor, "h2"); }}
         title="Heading 2"
       />
       <ToolbarButton
         icon={<Heading3 size={15} />}
-        isActive={editor.isActive("heading", { level: 3 })}
-        onClick={function toggleH3() {
-          editor.chain().focus().toggleHeading({ level: 3 }).run();
-        }}
+        isActive={isBlockActive(editor, "h3")}
+        onClick={function clickH3() { toggleBlock(editor, "h3"); }}
         title="Heading 3"
       />
 
@@ -167,42 +209,40 @@ export default function EditorToolbar({ editor }: EditorToolbarProps) {
 
       <ToolbarButton
         icon={<Quote size={15} />}
-        isActive={editor.isActive("blockquote")}
-        onClick={function toggleQuote() {
-          editor.chain().focus().toggleBlockquote().run();
-        }}
+        isActive={isBlockActive(editor, "blockquote")}
+        onClick={function clickQuote() { toggleBlock(editor, "blockquote"); }}
         title="Quote"
       />
       <ToolbarButton
         icon={<List size={15} />}
-        isActive={editor.isActive("bulletList")}
-        onClick={function toggleBullet() {
-          editor.chain().focus().toggleBulletList().run();
-        }}
+        isActive={isBlockActive(editor, "ul")}
+        onClick={function clickBullet() { toggleBlock(editor, "ul"); }}
         title="Bullet List"
       />
       <ToolbarButton
         icon={<ListOrdered size={15} />}
-        isActive={editor.isActive("orderedList")}
-        onClick={function toggleOrdered() {
-          editor.chain().focus().toggleOrderedList().run();
-        }}
+        isActive={isBlockActive(editor, "ol")}
+        onClick={function clickOrdered() { toggleBlock(editor, "ol"); }}
         title="Ordered List"
       />
       <ToolbarButton
         icon={<Minus size={15} />}
         isActive={false}
-        onClick={function insertHr() {
-          editor.chain().focus().setHorizontalRule().run();
+        onClick={function clickHr() {
+          try {
+            var { Transforms } = require("slate");
+            Transforms.insertNodes(editor, {
+              type: "hr",
+              children: [{ text: "" }],
+            } as any);
+          } catch {}
         }}
         title="Horizontal Rule"
       />
       <ToolbarButton
         icon={<Code size={15} />}
-        isActive={editor.isActive("code")}
-        onClick={function toggleCode() {
-          editor.chain().focus().toggleCode().run();
-        }}
+        isActive={isMarkActive(editor, "code")}
+        onClick={function clickCode() { toggleMark(editor, "code"); }}
         title="Code"
       />
       <ToolbarButton

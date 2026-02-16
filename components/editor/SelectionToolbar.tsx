@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Editor, Range, Node, Text } from "slate";
+import { ReactEditor } from "slate-react";
 import {
   Bold,
   Italic,
@@ -14,43 +16,82 @@ import {
   StickyNote,
   X,
 } from "lucide-react";
-import type { Editor } from "@tiptap/react";
 import { useAppStore } from "@/store";
 import { estimateTokens, formatTokenCount } from "@/lib/tokens";
 
 interface SelectionToolbarProps {
-  editor: Editor;
+  editor: any;
   onClose: () => void;
   onAddNote?: (quote: string) => void;
+  onSuggestion?: (data: {
+    anchor: { path: number[]; offset: number };
+    focus: { path: number[]; offset: number };
+    original: string;
+    suggested: string;
+  }) => void;
+}
+
+function getSelectedText(editor: any): string {
+  if (!editor.selection || Range.isCollapsed(editor.selection)) return "";
+  try {
+    return Editor.string(editor, editor.selection);
+  } catch {
+    return "";
+  }
+}
+
+function isMarkActive(editor: any, mark: string): boolean {
+  try {
+    var marks = Editor.marks(editor);
+    return !!(marks as any)?.[mark];
+  } catch {
+    return false;
+  }
+}
+
+function toggleMark(editor: any, mark: string) {
+  try {
+    var marks = Editor.marks(editor);
+    if ((marks as any)?.[mark]) {
+      Editor.removeMark(editor, mark);
+    } else {
+      Editor.addMark(editor, mark, true);
+    }
+  } catch {}
 }
 
 export default function SelectionToolbar({
   editor,
   onClose,
   onAddNote,
+  onSuggestion,
 }: SelectionToolbarProps) {
-  const [instruction, setInstruction] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [linkMode, setLinkMode] = useState(false);
-  const [linkUrl, setLinkUrl] = useState("");
-  const selectionRef = useRef({ from: 0, to: 0, text: "" });
-  const toolbarRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const linkInputRef = useRef<HTMLInputElement>(null);
-  const preferences = useAppStore(function selectPrefs(s) {
+  var [instruction, setInstruction] = useState("");
+  var [loading, setLoading] = useState(false);
+  var [linkMode, setLinkMode] = useState(false);
+  var [linkUrl, setLinkUrl] = useState("");
+  var [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+  var toolbarRef = useRef<HTMLDivElement>(null);
+  var inputRef = useRef<HTMLInputElement>(null);
+  var linkInputRef = useRef<HTMLInputElement>(null);
+  var savedSelection = useRef<Range | null>(null);
+
+  var preferences = useAppStore(function selectPrefs(s) {
     return s.preferences;
   });
 
-  useEffect(function captureSelection() {
-    var { from, to } = editor.state.selection;
-    var text = from !== to ? editor.state.doc.textBetween(from, to, " ") : "";
-    selectionRef.current = { from, to, text };
-    if (from !== to) {
-      editor.commands.lockSelection({ from, to });
+  useEffect(function captureAndPosition() {
+    if (editor.selection && !Range.isCollapsed(editor.selection)) {
+      savedSelection.current = { ...editor.selection };
+      try {
+        var domRange = ReactEditor.toDOMRange(editor, editor.selection);
+        var rect = domRange.getBoundingClientRect();
+        setPosition({
+          top: rect.top - 8,
+          left: rect.left,
+        });
+      } catch {}
     }
-    return function cleanup() {
-      editor.commands.unlockSelection();
-    };
   }, [editor]);
 
   useEffect(function handleKeys() {
@@ -78,8 +119,10 @@ export default function SelectionToolbar({
 
   async function handleEdit(customInstruction: string) {
     if (!preferences.keysStored) return;
-    var sel = selectionRef.current;
-    if (!sel.text.trim()) return;
+    var text = getSelectedText(editor);
+    if (!text.trim()) return;
+    var sel = savedSelection.current;
+    if (!sel) return;
     setLoading(true);
 
     try {
@@ -87,7 +130,7 @@ export default function SelectionToolbar({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          text: sel.text,
+          text: text,
           instruction: customInstruction,
           mode: "inline",
           model: preferences.defaultModel,
@@ -97,11 +140,11 @@ export default function SelectionToolbar({
       if (!res.ok) throw new Error("API error: " + res.status);
 
       var data = await res.json();
-      if (data.result) {
-        editor.commands.setSuggestion({
-          from: sel.from,
-          to: sel.to,
-          original: sel.text,
+      if (data.result && onSuggestion) {
+        onSuggestion({
+          anchor: sel.anchor,
+          focus: sel.focus,
+          original: text,
           suggested: data.result,
         });
         onClose();
@@ -128,9 +171,16 @@ export default function SelectionToolbar({
 
   function handleLinkSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!linkUrl.trim()) return;
-    var { from, to } = selectionRef.current;
-    editor.chain().focus().setTextSelection({ from, to }).setLink({ href: linkUrl.trim() }).run();
+    if (!linkUrl.trim() || !savedSelection.current) return;
+    try {
+      var { Transforms } = require("slate");
+      Transforms.select(editor, savedSelection.current);
+      Transforms.wrapNodes(
+        editor,
+        { type: "a", url: linkUrl.trim(), children: [] } as any,
+        { split: true }
+      );
+    } catch {}
     setLinkMode(false);
     setLinkUrl("");
   }
@@ -141,14 +191,6 @@ export default function SelectionToolbar({
       e.preventDefault();
       handleLinkSubmit(e);
     }
-  }
-
-  function restoreSelectionAndRun(action: () => void) {
-    return function run() {
-      var { from, to } = selectionRef.current;
-      editor.chain().focus().setTextSelection({ from, to }).run();
-      action();
-    };
   }
 
   function formatBtn(
@@ -164,7 +206,7 @@ export default function SelectionToolbar({
         onMouseDown={function preventBlur(e) {
           e.preventDefault();
         }}
-        onClick={restoreSelectionAndRun(action)}
+        onClick={action}
         style={{
           display: "flex",
           alignItems: "center",
@@ -199,7 +241,10 @@ export default function SelectionToolbar({
     );
   }
 
-  var tokenEstimate = "~" + formatTokenCount(estimateTokens(selectionRef.current.text)) + "t";
+  var selectedText = getSelectedText(editor);
+  var tokenEstimate = "~" + formatTokenCount(estimateTokens(selectedText)) + "t";
+
+  if (!position) return null;
 
   return (
     <div
@@ -208,6 +253,11 @@ export default function SelectionToolbar({
         e.preventDefault();
       }}
       style={{
+        position: "fixed",
+        top: position.top,
+        left: position.left,
+        transform: "translateY(-100%)",
+        zIndex: 50,
         backgroundColor: "var(--color-surface)",
         border: "1px solid var(--color-border)",
         borderRadius: 10,
@@ -226,20 +276,20 @@ export default function SelectionToolbar({
       >
         {formatBtn(
           <Bold size={14} />,
-          function toggleBold() { editor.chain().toggleBold().run(); },
-          editor.isActive("bold"),
+          function clickBold() { toggleMark(editor, "bold"); },
+          isMarkActive(editor, "bold"),
           "Bold",
         )}
         {formatBtn(
           <Italic size={14} />,
-          function toggleItalic() { editor.chain().toggleItalic().run(); },
-          editor.isActive("italic"),
+          function clickItalic() { toggleMark(editor, "italic"); },
+          isMarkActive(editor, "italic"),
           "Italic",
         )}
         {formatBtn(
           <Strikethrough size={14} />,
-          function toggleStrike() { editor.chain().toggleStrike().run(); },
-          editor.isActive("strike"),
+          function clickStrike() { toggleMark(editor, "strikethrough"); },
+          isMarkActive(editor, "strikethrough"),
           "Strikethrough",
         )}
 
@@ -247,20 +297,29 @@ export default function SelectionToolbar({
 
         {formatBtn(
           <Heading1 size={14} />,
-          function toggleH1() { editor.chain().toggleHeading({ level: 1 }).run(); },
-          editor.isActive("heading", { level: 1 }),
+          function clickH1() {
+            var { Transforms } = require("slate");
+            Transforms.setNodes(editor, { type: "h1" } as any);
+          },
+          false,
           "Heading 1",
         )}
         {formatBtn(
           <Heading2 size={14} />,
-          function toggleH2() { editor.chain().toggleHeading({ level: 2 }).run(); },
-          editor.isActive("heading", { level: 2 }),
+          function clickH2() {
+            var { Transforms } = require("slate");
+            Transforms.setNodes(editor, { type: "h2" } as any);
+          },
+          false,
           "Heading 2",
         )}
         {formatBtn(
           <Heading3 size={14} />,
-          function toggleH3() { editor.chain().toggleHeading({ level: 3 }).run(); },
-          editor.isActive("heading", { level: 3 }),
+          function clickH3() {
+            var { Transforms } = require("slate");
+            Transforms.setNodes(editor, { type: "h3" } as any);
+          },
+          false,
           "Heading 3",
         )}
 
@@ -268,8 +327,8 @@ export default function SelectionToolbar({
 
         {formatBtn(
           <Highlighter size={14} />,
-          function toggleHighlight() { editor.chain().toggleHighlight({ color: "#fef08a" }).run(); },
-          editor.isActive("highlight"),
+          function clickHighlight() { toggleMark(editor, "highlight"); },
+          isMarkActive(editor, "highlight"),
           "Highlight",
         )}
         {linkMode ? (
@@ -311,7 +370,7 @@ export default function SelectionToolbar({
           formatBtn(
             <Link size={14} />,
             function openLink() { setLinkMode(true); },
-            editor.isActive("link"),
+            false,
             "Link",
           )
         )}
@@ -320,7 +379,7 @@ export default function SelectionToolbar({
           <StickyNote size={14} />,
           function addNote() {
             if (onAddNote) {
-              onAddNote(selectionRef.current.text);
+              onAddNote(selectedText);
             }
           },
           false,
