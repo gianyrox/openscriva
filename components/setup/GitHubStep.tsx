@@ -40,23 +40,20 @@ export default function GitHubStep({ onValidated }: GitHubStepProps) {
       return;
     }
 
-    fetch("/api/keys/check")
+    fetch("/api/auth/github/check")
       .then(function handleRes(res) { return res.json(); })
       .then(function handleData(data) {
-        if (data.hasGithubToken) {
-          fetch("/api/github/repos")
-            .then(function handleRes(res) { return res.json(); })
-            .then(function handleData(repoData) {
-              if (repoData.username) {
-                setStatus("success");
-                setUsername(repoData.username);
-                onValidated(true, repoData.username);
-              }
-            })
-            .catch(function noop() {});
+        if (data.authenticated && data.username) {
+          setStatus("success");
+          setUsername(data.username);
+          onValidated(true, data.username);
+        } else {
+          setStatus("idle");
         }
       })
-      .catch(function noop() {})
+      .catch(function noop() {
+        setStatus("idle");
+      })
       .finally(function done() {
         setChecking(false);
       });

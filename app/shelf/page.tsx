@@ -81,6 +81,7 @@ export default function ShelfPage() {
   const [allRepos, setAllRepos] = useState<RepoEntry[]>([]);
   const [loadingRepos, setLoadingRepos] = useState(false);
   const [repoSearch, setRepoSearch] = useState("");
+  const [repoError, setRepoError] = useState("");
 
   useEffect(function checkAuth() {
     if (!keysStored) {
@@ -105,17 +106,29 @@ export default function ShelfPage() {
   function fetchAllRepos() {
     if (!keysStored) return;
     setLoadingRepos(true);
+    setRepoError("");
 
     fetch("/api/github/repos")
       .then(function handleResponse(res) {
-        if (!res.ok) throw new Error("Failed to fetch repos");
+        if (!res.ok) {
+          if (res.status === 401) {
+            throw new Error("Not authenticated. Please connect to GitHub in settings.");
+          }
+          throw new Error("Failed to fetch repositories");
+        }
         return res.json();
       })
       .then(function handleData(data) {
-        setAllRepos(data.repos || []);
+        if (data.error) {
+          setRepoError(data.error);
+          setAllRepos([]);
+        } else {
+          setAllRepos(data.repos || []);
+        }
       })
-      .catch(function handleError() {
+      .catch(function handleError(err) {
         setAllRepos([]);
+        setRepoError(err instanceof Error ? err.message : "Failed to load repositories");
       })
       .finally(function done() {
         setLoadingRepos(false);
@@ -747,14 +760,53 @@ export default function ShelfPage() {
                 <div
                   style={{
                     display: "flex",
+                    flexDirection: "column",
                     alignItems: "center",
                     justifyContent: "center",
                     padding: 32,
-                    color: "var(--color-text-muted)",
-                    fontSize: 14,
+                    gap: 8,
                   }}
                 >
-                  {repoSearch ? "No matching repositories found." : "No repositories available to add."}
+                  {repoError ? (
+                    <>
+                      <div
+                        style={{
+                          color: "var(--color-error)",
+                          fontSize: 14,
+                          fontWeight: 500,
+                          textAlign: "center",
+                        }}
+                      >
+                        {repoError}
+                      </div>
+                      <button
+                        onClick={fetchAllRepos}
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 500,
+                          padding: "6px 16px",
+                          borderRadius: 6,
+                          border: "1px solid var(--color-border)",
+                          backgroundColor: "transparent",
+                          color: "var(--color-text-muted)",
+                          cursor: "pointer",
+                          fontFamily: "var(--font-inter), system-ui, sans-serif",
+                          marginTop: 8,
+                        }}
+                      >
+                        Retry
+                      </button>
+                    </>
+                  ) : (
+                    <div
+                      style={{
+                        color: "var(--color-text-muted)",
+                        fontSize: 14,
+                      }}
+                    >
+                      {repoSearch ? "No matching repositories found." : "No repositories available to add."}
+                    </div>
+                  )}
                 </div>
               )}
 

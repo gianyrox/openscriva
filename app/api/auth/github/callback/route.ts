@@ -25,6 +25,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const redirectUri = new URL("/api/auth/github/callback", request.nextUrl.origin).toString();
+    
     const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
       method: "POST",
       headers: {
@@ -35,6 +37,7 @@ export async function GET(request: NextRequest) {
         client_id: clientId,
         client_secret: clientSecret,
         code,
+        redirect_uri: redirectUri,
       }),
     });
 
