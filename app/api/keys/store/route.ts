@@ -1,19 +1,18 @@
 import { NextResponse } from "next/server";
-import { encrypt } from "@/lib/crypto";
+import { storeAnthropicKey } from "@/lib/keys";
 
 export async function POST(request: Request) {
   try {
-    const { anthropicKey, githubToken } = await request.json();
+    const { anthropicKey } = await request.json();
 
-    if (!anthropicKey || !githubToken) {
+    if (!anthropicKey) {
       return NextResponse.json(
-        { error: "Both anthropicKey and githubToken are required" },
+        { error: "anthropicKey is required" },
         { status: 400 },
       );
     }
 
-    const payload = JSON.stringify({ anthropicKey, githubToken });
-    const encrypted = encrypt(payload);
+    const encrypted = await storeAnthropicKey(anthropicKey);
 
     const response = NextResponse.json({ ok: true });
     response.cookies.set("scriva-keys", encrypted, {

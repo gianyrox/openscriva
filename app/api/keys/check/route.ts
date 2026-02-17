@@ -8,14 +8,16 @@ export async function GET() {
     const cookie = store.get("scriva-keys");
 
     if (!cookie) {
-      return NextResponse.json({ hasKeys: false });
+      return NextResponse.json({ hasKeys: false, hasAnthropicKey: false, hasGithubToken: false });
     }
 
     const parsed = JSON.parse(decrypt(cookie.value));
-    const hasKeys = Boolean(parsed.anthropicKey && parsed.githubToken);
+    const hasAnthropicKey = Boolean(parsed.anthropicKey);
+    const hasGithubToken = Boolean(parsed.githubToken);
+    const hasKeys = hasAnthropicKey && hasGithubToken;
 
-    return NextResponse.json({ hasKeys });
+    return NextResponse.json({ hasKeys, hasAnthropicKey, hasGithubToken });
   } catch {
-    return NextResponse.json({ hasKeys: false });
+    return NextResponse.json({ hasKeys: false, hasAnthropicKey: false, hasGithubToken: false });
   }
 }

@@ -6,14 +6,17 @@ import { Check, ChevronRight, ChevronLeft } from "lucide-react";
 import posthog from "posthog-js";
 import { useAppStore } from "@/store";
 import type { BookConfig } from "@/types";
+import type { WritingType } from "@/types/scriva";
 import ApiKeyStep from "./ApiKeyStep";
 import GitHubStep from "./GitHubStep";
+import WritingTypeStep from "./WritingTypeStep";
 import BookStep from "./BookStep";
 
 const STEPS = [
-  { label: "Anthropic API Key" },
   { label: "GitHub" },
-  { label: "Select Book" },
+  { label: "API Key" },
+  { label: "Writing" },
+  { label: "Book" },
 ];
 
 export default function SetupWizard() {
@@ -25,11 +28,14 @@ export default function SetupWizard() {
     return s.setBook;
   });
 
+  var lastStep = STEPS.length - 1;
+
   const [step, setStep] = useState(0);
   const [apiKey, setApiKey] = useState("");
   const [apiKeyValid, setApiKeyValid] = useState(false);
-  const [githubToken, setGithubToken] = useState("");
   const [githubValid, setGithubValid] = useState(false);
+  const [githubUsername, setGithubUsername] = useState("");
+  const [writingType, setWritingType] = useState<WritingType>("fiction");
   const [bookConfig, setBookConfig] = useState<BookConfig | null>(null);
 
   const handleBookSelected = useCallback(function handleBookSelected(
@@ -39,14 +45,15 @@ export default function SetupWizard() {
   }, []);
 
   function isStepValid(): boolean {
-    if (step === 0) return apiKeyValid;
-    if (step === 1) return githubValid;
-    if (step === 2) return bookConfig !== null;
+    if (step === 0) return githubValid;
+    if (step === 1) return apiKeyValid;
+    if (step === 2) return true;
+    if (step === 3) return bookConfig !== null;
     return false;
   }
 
   function handleNext() {
-    if (step < 2) {
+    if (step < lastStep) {
       setStep(step + 1);
     } else {
       handleFinish();
@@ -65,7 +72,6 @@ export default function SetupWizard() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         anthropicKey: apiKey.trim(),
-        githubToken: githubToken.trim(),
       }),
     });
 
@@ -101,17 +107,29 @@ export default function SetupWizard() {
       };
       localStorage.setItem("scriva-current-book", JSON.stringify(currentBook));
 
-      // Track setup completion with PostHog
+      try {
+        await fetch("/api/scaffold", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            owner: bookConfig.owner,
+            repo: bookConfig.repo,
+            branch: bookConfig.branch,
+            writingType,
+          }),
+        });
+      } catch {}
+
       posthog.capture("setup_completed", {
         has_book_selected: true,
         book_name: bookConfig.repo,
         book_owner: bookConfig.owner,
         is_new_book: !exists,
+        writing_type: writingType,
       });
 
       router.push("/book");
     } else {
-      // Track setup completion without book selection
       posthog.capture("setup_completed", {
         has_book_selected: false,
       });
@@ -257,24 +275,28 @@ export default function SetupWizard() {
           }}
         >
           {step === 0 && (
+            <GitHubStep
+              onValidated={function handleGitHubValidated(valid, username) {
+                setGithubValid(valid);
+                if (username) setGithubUsername(username);
+              }}
+            />
+          )}
+          {step === 1 && (
             <ApiKeyStep
               value={apiKey}
               onChange={setApiKey}
               onValidated={setApiKeyValid}
             />
           )}
-          {step === 1 && (
-            <GitHubStep
-              value={githubToken}
-              onChange={setGithubToken}
-              onValidated={function handleGitHubValidated(valid) {
-                setGithubValid(valid);
-              }}
+          {step === 2 && (
+            <WritingTypeStep
+              value={writingType}
+              onChange={setWritingType}
             />
           )}
-          {step === 2 && (
+          {step === 3 && (
             <BookStep
-              githubToken={githubToken}
               onBookSelected={handleBookSelected}
             />
           )}
@@ -351,8 +373,8 @@ export default function SetupWizard() {
               }
             }}
           >
-            {step === 2 ? "Finish Setup" : "Next"}
-            {step < 2 && <ChevronRight size={16} />}
+            {step === lastStep ? "Finish Setup" : "Next"}
+            {step < lastStep && <ChevronRight size={16} />}
           </button>
         </div>
       </div>

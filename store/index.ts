@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type {
   SaveStatus,
+  IndexStatus,
   Preferences,
   PanelState,
   EditorState,
@@ -35,6 +36,7 @@ interface AppState {
   setBook: (bookId: string | undefined) => void;
   setDraftBranch: (branch: string | undefined) => void;
   setSaveStatus: (status: SaveStatus) => void;
+  setIndexStatus: (status: IndexStatus) => void;
   setWordCount: (count: number) => void;
   setMergeConflicts: (conflicts: MergeConflict[]) => void;
   setReviewPR: (pr: ReviewPR | null) => void;
@@ -47,7 +49,6 @@ interface AppState {
   toggleFocusMode: () => void;
   toggleLeftPanel: () => void;
   toggleRightPanel: () => void;
-  setLeftTab: (tab: PanelState["leftTab"]) => void;
   setRightTab: (tab: PanelState["rightTab"]) => void;
   updatePreferences: (prefs: Partial<Preferences>) => void;
 }
@@ -61,6 +62,7 @@ export const useAppStore = create<AppState>()(
           currentBook: undefined,
           draftBranch: undefined,
           saveStatus: "idle",
+          indexStatus: "idle",
           wordCount: 0,
           isMarkdownView: false,
           isFocusMode: false,
@@ -74,7 +76,6 @@ export const useAppStore = create<AppState>()(
         panels: {
           leftOpen: true,
           rightOpen: true,
-          leftTab: "book",
           rightTab: "chat",
         },
 
@@ -113,6 +114,14 @@ export const useAppStore = create<AppState>()(
           set(function updateSaveStatus(state) {
             return {
               editor: { ...state.editor, saveStatus: status },
+            };
+          });
+        },
+
+        setIndexStatus: function setIndexStatus(status) {
+          set(function updateIndexStatus(state) {
+            return {
+              editor: { ...state.editor, indexStatus: status },
             };
           });
         },
@@ -201,14 +210,6 @@ export const useAppStore = create<AppState>()(
                 ...state.panels,
                 rightOpen: !state.panels.rightOpen,
               },
-            };
-          });
-        },
-
-        setLeftTab: function setLeftTab(tab) {
-          set(function updateLeftTab(state) {
-            return {
-              panels: { ...state.panels, leftTab: tab },
             };
           });
         },

@@ -118,7 +118,9 @@ export async function POST(request: NextRequest) {
       systemPrompt = buildReadinessPrompt();
     }
 
-    if (contexts.length > 0) {
+    if (body.briefing) {
+      systemPrompt += "\n\n" + buildSystemPrompt([], body.bookTitle, body.briefing);
+    } else if (contexts.length > 0) {
       const contextBlock = buildSystemPrompt(contexts, body.bookTitle);
       systemPrompt += "\n\n" + contextBlock;
     }

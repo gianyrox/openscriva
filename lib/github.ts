@@ -106,6 +106,16 @@ export async function createOrUpdateFile(
 ): Promise<{ sha: string }> {
   const octokit = createOctokit(token);
 
+  var fileSha = sha;
+  if (!fileSha) {
+    try {
+      const { data: existing } = await octokit.repos.getContent({ owner, repo, path, ref: branch });
+      if (!Array.isArray(existing) && existing.sha) {
+        fileSha = existing.sha;
+      }
+    } catch {}
+  }
+
   try {
     const { data } = await octokit.repos.createOrUpdateFileContents({
       owner,
@@ -113,7 +123,7 @@ export async function createOrUpdateFile(
       path,
       message,
       content: Buffer.from(content).toString("base64"),
-      sha,
+      sha: fileSha,
       branch,
     });
 

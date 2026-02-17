@@ -2,12 +2,24 @@ export interface Book {
   title: string;
   subtitle?: string;
   author: string;
+  coAuthors?: string[];
   description?: string;
+  logline?: string;
+  genre?: string;
+  subGenre?: string;
+  themes?: string[];
+  targetAudience?: string;
+  targetWordCount?: number;
+  language?: string;
+  isbn?: string;
+  publisher?: string;
   coverImage?: string;
   bookDir: string;
   contextDir: string;
   imagesDir?: string;
   parts: Part[];
+  frontMatter?: import("./scriva").MatterSection[];
+  backMatter?: import("./scriva").MatterSection[];
 }
 
 export interface Part {
@@ -74,7 +86,12 @@ export interface ContextRef {
     | "outline"
     | "voice"
     | "selection"
-    | "book";
+    | "book"
+    | "world-model"
+    | "narrative"
+    | "rules"
+    | "exemplars"
+    | "briefing";
   key: string;
   label: string;
   tokenCount?: number;
@@ -98,6 +115,8 @@ export interface MarginNote {
 
 export type SaveStatus = "idle" | "saving" | "saved" | "offline" | "error";
 
+export type IndexStatus = "idle" | "indexing" | "indexed" | "error";
+
 export interface EditorState {
   currentChapter?: string;
   currentBook?: string;
@@ -106,6 +125,7 @@ export interface EditorState {
   wordCount: number;
   isMarkdownView: boolean;
   isFocusMode: boolean;
+  indexStatus: IndexStatus;
 }
 
 export interface MergeConflict {
@@ -132,7 +152,6 @@ export interface FileTreeNode {
 export interface PanelState {
   leftOpen: boolean;
   rightOpen: boolean;
-  leftTab: "book" | "explorer" | "outline" | "context" | "voice" | "find";
   rightTab: "chat";
 }
 

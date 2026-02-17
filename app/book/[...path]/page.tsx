@@ -19,6 +19,44 @@ import MergeConflictView from "@/components/editor/MergeConflictView";
 import type { MergeConflict } from "@/types";
 import type { SuggestionData } from "@/components/editor/extensions/inlineSuggestion";
 import { Loader2 } from "lucide-react";
+import BookMetadataEditor from "@/components/editors/BookMetadataEditor";
+import ConfigEditor from "@/components/editors/ConfigEditor";
+import CharactersEditor from "@/components/editors/CharactersEditor";
+import CitationsEditor from "@/components/editors/CitationsEditor";
+import RulesEditor from "@/components/editors/RulesEditor";
+import WorldEditor from "@/components/editors/WorldEditor";
+import NarrativeEditor from "@/components/editors/NarrativeEditor";
+import VoiceProfileEditor from "@/components/editors/VoiceProfileEditor";
+
+var SCRIVA_EDITOR_MAP: Record<string, string> = {
+  "book.json": "book-metadata",
+  ".scriva/config.json": "config",
+  ".scriva/rules.json": "rules",
+  ".scriva/characters.json": "characters",
+  ".scriva/citations.json": "citations",
+  ".scriva/voice/profile.json": "voice",
+};
+
+function getScrivaEditorType(filePath: string): string | null {
+  if (SCRIVA_EDITOR_MAP[filePath]) return SCRIVA_EDITOR_MAP[filePath];
+  if (filePath.startsWith(".scriva/world/") && filePath.endsWith(".json")) return "world";
+  if (filePath.startsWith(".scriva/narrative/") && filePath.endsWith(".json")) return "narrative";
+  return null;
+}
+
+function ScrivaEditor(props: { type: string; filePath: string }) {
+  switch (props.type) {
+    case "book-metadata": return <BookMetadataEditor filePath={props.filePath} />;
+    case "config": return <ConfigEditor filePath={props.filePath} />;
+    case "characters": return <CharactersEditor filePath={props.filePath} />;
+    case "citations": return <CitationsEditor filePath={props.filePath} />;
+    case "rules": return <RulesEditor filePath={props.filePath} />;
+    case "world": return <WorldEditor filePath={props.filePath} />;
+    case "narrative": return <NarrativeEditor filePath={props.filePath} />;
+    case "voice": return <VoiceProfileEditor filePath={props.filePath} />;
+    default: return null;
+  }
+}
 
 var pendingNoteQuote: string | null = null;
 
@@ -118,6 +156,19 @@ function setEditorMarkdownContent(editor: any, markdown: string) {
 }
 
 export default function FilePage() {
+  var params = useParams();
+  var pathSegments = params.path as string[];
+  var filePath = pathSegments.join("/");
+
+  var scrivaEditorType = getScrivaEditorType(filePath);
+  if (scrivaEditorType) {
+    return <ScrivaEditor type={scrivaEditorType} filePath={filePath} />;
+  }
+
+  return <FileEditorPage />;
+}
+
+function FileEditorPage() {
   var params = useParams();
   var router = useRouter();
   var pathSegments = params.path as string[];

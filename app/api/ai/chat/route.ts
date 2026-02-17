@@ -34,14 +34,20 @@ export async function POST(request: NextRequest) {
     const model: "haiku" | "sonnet" | "opus" = body.model || "sonnet";
     const contexts: { type: string; content: string }[] = body.contexts || [];
 
-    let systemPrompt = buildSystemPrompt(contexts, body.bookTitle);
+    let systemPrompt: string;
 
-    if (body.manuscriptIndex) {
-      systemPrompt += "\n\n" + body.manuscriptIndex;
-    }
+    if (body.briefing) {
+      systemPrompt = buildSystemPrompt(contexts, body.bookTitle, body.briefing);
+    } else {
+      systemPrompt = buildSystemPrompt(contexts, body.bookTitle);
 
-    if (body.voiceProfile) {
-      systemPrompt += "\n\n" + body.voiceProfile;
+      if (body.manuscriptIndex) {
+        systemPrompt += "\n\n" + body.manuscriptIndex;
+      }
+
+      if (body.voiceProfile) {
+        systemPrompt += "\n\n" + body.voiceProfile;
+      }
     }
 
     if (body.mode === "chat") {

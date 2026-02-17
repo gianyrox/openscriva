@@ -25,7 +25,9 @@ export async function POST(request: NextRequest) {
         "You are editing a passage from a book. Return a JSON object with two fields: \"result\" (the modified text) and \"reasoning\" (1-2 sentences explaining why you made the key changes). Return ONLY valid JSON.";
     }
 
-    if (contexts.length > 0) {
+    if (body.briefing) {
+      systemPrompt += "\n\n" + buildSystemPrompt([], undefined, body.briefing);
+    } else if (contexts.length > 0) {
       const contextBlock = buildSystemPrompt(contexts, undefined);
       systemPrompt += "\n\n" + contextBlock;
     }

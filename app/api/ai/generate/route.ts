@@ -36,7 +36,9 @@ export async function POST(request: NextRequest) {
     }
 
     if (body.mode === "continue") {
-      let systemPrompt = buildSystemPrompt(contexts, body.bookTitle);
+      let systemPrompt = body.briefing
+        ? buildSystemPrompt([], body.bookTitle, body.briefing)
+        : buildSystemPrompt(contexts, body.bookTitle);
       systemPrompt +=
         "\n\nContinue writing from where the text leaves off. Write 3-5 paragraphs that match the voice, tone, and style of the existing text. Return ONLY the continuation text.";
 
@@ -59,7 +61,9 @@ export async function POST(request: NextRequest) {
     }
 
     if (body.mode === "draft") {
-      let systemPrompt = buildSystemPrompt(contexts, body.bookTitle);
+      let systemPrompt = body.briefing
+        ? buildSystemPrompt([], body.bookTitle, body.briefing)
+        : buildSystemPrompt(contexts, body.bookTitle);
       systemPrompt +=
         "\n\nGenerate a full chapter draft based on the outline synopsis. Match the voice and style of any provided context. Include scene-setting, dialogue where appropriate, and narrative flow. Return ONLY the chapter text.";
 

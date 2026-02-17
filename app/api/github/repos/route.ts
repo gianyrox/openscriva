@@ -57,12 +57,22 @@ export async function POST(request: NextRequest) {
     const octokit = new Octokit({ auth: token });
     const { data: user } = await octokit.users.getAuthenticated();
 
-    const { data: repo } = await octokit.repos.createForAuthenticatedUser({
-      name: body.name,
-      description: body.description ?? "",
-      private: body.private ?? true,
-      auto_init: true,
-    });
+    var repo;
+    try {
+      const created = await octokit.repos.createForAuthenticatedUser({
+        name: body.name,
+        description: body.description ?? "",
+        private: body.private ?? true,
+        auto_init: true,
+      });
+      repo = created.data;
+    } catch (createErr: unknown) {
+      var createStatus = createErr && typeof createErr === "object" && "status" in createErr ? (createErr as { status: number }).status : 0;
+      if (createStatus === 422) {
+        return NextResponse.json({ error: "A repository named \"" + body.name + "\" already exists on your account. Choose a different title or use the existing repository below." }, { status: 409 });
+      }
+      throw createErr;
+    }
 
     const owner = user.login;
     const repoName = repo.name;
@@ -125,8 +135,21 @@ export async function POST(request: NextRequest) {
       updated_at: repo.updated_at,
     });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    var status = 500;
+    var message = "Unknown error";
+    if (err && typeof err === "object" && "status" in err) {
+      status = (err as { status: number }).status;
+    }
+    if (err && typeof err === "object" && "response" in err) {
+      var resp = (err as { response: { data?: { message?: string } } }).response;
+      if (resp?.data?.message) {
+        message = resp.data.message;
+      }
+    } else if (err instanceof Error) {
+      message = err.message;
+    }
+    console.error("POST /api/github/repos error:", status, message);
+    return NextResponse.json({ error: message }, { status });
   }
 }
 

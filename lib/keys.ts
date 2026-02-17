@@ -1,8 +1,8 @@
 import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
-import { decrypt } from "./crypto";
+import { decrypt, encrypt } from "./crypto";
 
-async function getKeys(): Promise<{ anthropicKey: string; githubToken: string } | null> {
+async function getKeys(): Promise<Record<string, string> | null> {
   try {
     const store = await cookies();
     const cookie = store.get("scriva-keys");
@@ -22,5 +22,23 @@ export async function getAnthropicKey(request: NextRequest): Promise<string | nu
 export async function getGithubToken(request: NextRequest): Promise<string | null> {
   const keys = await getKeys();
   if (keys?.githubToken) return keys.githubToken;
-  return request.headers.get("x-github-token");
+  return null;
+}
+
+export async function hasGithubToken(): Promise<boolean> {
+  const keys = await getKeys();
+  return Boolean(keys?.githubToken);
+}
+
+export async function storeAnthropicKey(key: string): Promise<string> {
+  const store = await cookies();
+  var existing: Record<string, string> = {};
+  const cookie = store.get("scriva-keys");
+  if (cookie) {
+    try {
+      existing = JSON.parse(decrypt(cookie.value));
+    } catch {}
+  }
+  existing.anthropicKey = key;
+  return encrypt(JSON.stringify(existing));
 }

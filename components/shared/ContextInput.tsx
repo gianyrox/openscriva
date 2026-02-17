@@ -23,7 +23,7 @@ interface ContextInputProps {
   availableContexts: ContextRef[];
 }
 
-const typeIcons: Record<ContextRef["type"], typeof FileText> = {
+const typeIcons: Partial<Record<ContextRef["type"], typeof FileText>> = {
   chapter: FileText,
   character: Users,
   research: BookOpen,

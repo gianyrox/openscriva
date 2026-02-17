@@ -168,26 +168,11 @@ export default function BookPanel() {
       style={{
         display: "flex",
         flexDirection: "column",
-        height: "100%",
         fontFamily: "var(--font-inter), system-ui, sans-serif",
         fontSize: 12,
       }}
     >
-      <div
-        style={{
-          padding: "12px 16px",
-          borderBottom: "1px solid var(--color-border)",
-          fontSize: 12,
-          fontWeight: 600,
-          color: "var(--color-text-muted)",
-          textTransform: "uppercase",
-          letterSpacing: "0.05em",
-        }}
-      >
-        {config.book.title || "Chapters"}
-      </div>
-
-      <div style={{ flex: 1, overflowY: "auto", padding: "4px 0" }}>
+      <div style={{ maxHeight: 400, overflowY: "auto", padding: "4px 0" }}>
         {chapters.length === 0 ? (
           <div
             style={{

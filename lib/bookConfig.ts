@@ -1,4 +1,5 @@
 import type { BookConfig, Book } from "@/types";
+import type { ScrivaConfig, FeatureKey } from "@/types/scriva";
 import { getItem, setItem } from "@/lib/storage";
 import { parseBookStructure } from "@/lib/book";
 
@@ -150,6 +151,74 @@ export function getRepoInfo(currentBook?: string): { owner: string; repo: string
     const parsed = JSON.parse(raw);
     const [owner, repo] = parsed.full_name.split("/");
     return { owner, repo, branch: parsed.default_branch ?? "main" };
+  } catch {
+    return null;
+  }
+}
+
+function scrivaConfigKey(repoKey: string): string {
+  return "scriva:framework:" + repoKey;
+}
+
+export function getScrivaConfig(currentBook?: string): ScrivaConfig | null {
+  if (!isClient()) return null;
+  const repoKey = currentBook ?? getPersistedBookKey();
+  if (!repoKey) return null;
+  return getItem<ScrivaConfig | null>(scrivaConfigKey(repoKey), null);
+}
+
+export function saveScrivaConfig(repoKey: string, config: ScrivaConfig): void {
+  setItem(scrivaConfigKey(repoKey), config);
+}
+
+export function isFeatureEnabled(feature: FeatureKey, currentBook?: string): boolean {
+  const config = getScrivaConfig(currentBook);
+  if (!config) return false;
+  return config.features[feature] === true;
+}
+
+export async function hasScrivaFramework(
+  owner: string,
+  repo: string,
+  branch: string,
+): Promise<boolean> {
+  try {
+    const res = await fetch(
+      "/api/github/files?owner=" + owner + "&repo=" + repo + "&path=.scriva/config.json&branch=" + branch,
+    );
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export function updateScrivaFeature(feature: FeatureKey, enabled: boolean, currentBook?: string): ScrivaConfig | null {
+  var config = getScrivaConfig(currentBook);
+  if (!config) return null;
+  var next: ScrivaConfig = { ...config, features: { ...config.features, [feature]: enabled } };
+  var repoKey = currentBook ?? getPersistedBookKey();
+  if (repoKey) {
+    saveScrivaConfig(repoKey, next);
+  }
+  return next;
+}
+
+export async function fetchScrivaConfig(
+  owner: string,
+  repo: string,
+  branch: string,
+): Promise<ScrivaConfig | null> {
+  try {
+    const res = await fetch(
+      "/api/github/files?owner=" + owner + "&repo=" + repo + "&path=.scriva/config.json&branch=" + branch,
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.content) return null;
+    var parsed = JSON.parse(data.content) as ScrivaConfig;
+    var repoKey = owner + "/" + repo;
+    saveScrivaConfig(repoKey, parsed);
+    return parsed;
   } catch {
     return null;
   }

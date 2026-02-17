@@ -7,6 +7,7 @@ interface AutoSaveConfig {
   repo: string;
   branch: string;
   onStatusChange: (status: SaveStatus) => void;
+  onSaveComplete?: (path: string, content: string) => void;
 }
 
 interface PendingSave {
@@ -88,6 +89,12 @@ export function createAutoSaver(config: AutoSaveConfig): AutoSaver {
           entry.sha,
           config.branch,
         );
+
+        if (config.onSaveComplete) {
+          try {
+            config.onSaveComplete(entry.path, entry.content);
+          } catch {}
+        }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "";
 

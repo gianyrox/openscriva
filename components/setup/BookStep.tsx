@@ -24,17 +24,17 @@ interface Repo {
 }
 
 interface BookStepProps {
-  githubToken: string;
   onBookSelected: (config: BookConfig) => void;
 }
 
 export default function BookStep({
-  githubToken,
   onBookSelected,
 }: BookStepProps) {
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [creating, setCreating] = useState(false);
+  const [created, setCreated] = useState(false);
+  const [createdName, setCreatedName] = useState("");
   const [createError, setCreateError] = useState("");
 
   const [existingExpanded, setExistingExpanded] = useState(false);
@@ -53,9 +53,7 @@ export default function BookStep({
     setLoadingRepos(true);
     setRepoError("");
 
-    fetch("/api/github/repos", {
-      headers: { "x-github-token": githubToken },
-    })
+    fetch("/api/github/repos")
       .then(function handleResponse(res) {
         return res.json();
       })
@@ -97,7 +95,6 @@ export default function BookStep({
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-github-token": githubToken,
       },
       body: JSON.stringify({
         name: repoName,
@@ -107,11 +104,13 @@ export default function BookStep({
       }),
     })
       .then(function handleResponse(res) {
-        if (!res.ok) throw new Error("Failed to create repository");
+        if (!res.ok) return res.json().then(function throwErr(data) { throw new Error(data.error || "Failed to create repository"); });
         return res.json();
       })
       .then(function handleCreated(repo) {
         setCreating(false);
+        setCreated(true);
+        setCreatedName(repo.name);
 
         const existing = JSON.parse(localStorage.getItem("scriva-books") || "[]");
         existing.push({
@@ -139,8 +138,8 @@ export default function BookStep({
         };
         onBookSelected(config);
       })
-      .catch(function handleError() {
-        setCreateError("Failed to create repository. Please try again.");
+      .catch(function handleError(err) {
+        setCreateError(err instanceof Error ? err.message : "Failed to create repository. Please try again.");
         setCreating(false);
       });
   }
@@ -156,7 +155,6 @@ export default function BookStep({
 
       fetch(
         `/api/github/branches?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}`,
-        { headers: { "x-github-token": githubToken } },
       )
         .then(function handleResponse(res) {
           return res.json();
@@ -169,7 +167,7 @@ export default function BookStep({
         .catch(function handleError() {})
         .finally(function done() {});
     },
-    [selectedRepo, githubToken],
+    [selectedRepo],
   );
 
   useEffect(
@@ -187,13 +185,7 @@ export default function BookStep({
       const [owner, repo] = selectedRepo.full_name.split("/");
 
       fetch(
-        `https://api.github.com/repos/${owner}/${repo}/git/trees/${selectedBranch}?recursive=1`,
-        {
-          headers: {
-            Authorization: `Bearer ${githubToken}`,
-            Accept: "application/vnd.github.v3+json",
-          },
-        },
+        `/api/github/tree?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}&branch=${encodeURIComponent(selectedBranch)}`,
       )
         .then(function handleResponse(res) {
           return res.json();
@@ -265,7 +257,7 @@ export default function BookStep({
           setDetecting(false);
         });
     },
-    [selectedRepo, selectedBranch, githubToken, onBookSelected],
+    [selectedRepo, selectedBranch, onBookSelected],
   );
 
   function handleSelectRepo(repo: Repo) {
@@ -300,139 +292,178 @@ export default function BookStep({
         </p>
       </div>
 
-      <div
-        style={{
-          backgroundColor: "var(--color-surface)",
-          borderRadius: 12,
-          border: "1px solid var(--color-border)",
-          padding: 24,
-          display: "flex",
-          flexDirection: "column",
-          gap: 16,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Plus size={18} style={{ color: "var(--color-accent)" }} />
-          <h3
-            style={{
-              fontFamily: "var(--font-inter), system-ui, sans-serif",
-              fontSize: 16,
-              fontWeight: 600,
-              color: "var(--color-text)",
-              margin: 0,
-            }}
-          >
-            Create a New Book
-          </h3>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label
-            style={{
-              fontFamily: "var(--font-inter), system-ui, sans-serif",
-              fontSize: 13,
-              fontWeight: 500,
-              color: "var(--color-text-muted)",
-            }}
-          >
-            Title
-          </label>
-          <input
-            type="text"
-            value={newTitle}
-            onChange={function onTitleChange(e) {
-              setNewTitle(e.target.value);
-            }}
-            onKeyDown={function onKeyDown(e) {
-              if (e.key === "Enter") handleCreateNew();
-            }}
-            placeholder="My Great Novel"
-            style={{
-              fontSize: 14,
-              padding: "10px 14px",
-              borderRadius: 8,
-              border: "1px solid var(--color-border)",
-              backgroundColor: "var(--color-bg)",
-              color: "var(--color-text)",
-              outline: "none",
-              fontFamily: "var(--font-inter), system-ui, sans-serif",
-              transition: "border-color 0.15s",
-            }}
-          />
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label
-            style={{
-              fontFamily: "var(--font-inter), system-ui, sans-serif",
-              fontSize: 13,
-              fontWeight: 500,
-              color: "var(--color-text-muted)",
-            }}
-          >
-            Description (optional)
-          </label>
-          <input
-            type="text"
-            value={newDescription}
-            onChange={function onDescChange(e) {
-              setNewDescription(e.target.value);
-            }}
-            onKeyDown={function onKeyDown(e) {
-              if (e.key === "Enter") handleCreateNew();
-            }}
-            placeholder="A brief description of your book..."
-            style={{
-              fontSize: 14,
-              padding: "10px 14px",
-              borderRadius: 8,
-              border: "1px solid var(--color-border)",
-              backgroundColor: "var(--color-bg)",
-              color: "var(--color-text)",
-              outline: "none",
-              fontFamily: "var(--font-inter), system-ui, sans-serif",
-              transition: "border-color 0.15s",
-            }}
-          />
-        </div>
-
-        {createError && (
-          <span
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              fontFamily: "var(--font-inter), system-ui, sans-serif",
-              fontSize: 13,
-              color: "var(--color-error)",
-            }}
-          >
-            <AlertCircle size={14} />
-            {createError}
-          </span>
-        )}
-
-        <button
-          onClick={handleCreateNew}
-          disabled={!newTitle.trim() || creating}
+      {created ? (
+        <div
           style={{
-            fontFamily: "var(--font-inter), system-ui, sans-serif",
-            fontSize: 14,
-            fontWeight: 500,
-            padding: "10px 24px",
-            borderRadius: 8,
-            border: "none",
-            backgroundColor: !newTitle.trim() ? "var(--color-border)" : "var(--color-accent)",
-            color: "#ffffff",
-            cursor: !newTitle.trim() ? "default" : "pointer",
-            opacity: creating ? 0.7 : 1,
-            transition: "background 150ms ease",
-            alignSelf: "flex-start",
+            backgroundColor: "var(--color-surface)",
+            borderRadius: 12,
+            border: "1px solid var(--color-success, #22c55e)",
+            padding: 24,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
           }}
         >
-          {creating ? "Creating..." : "Create Book"}
-        </button>
-      </div>
+          <Check size={20} style={{ color: "var(--color-success, #22c55e)", flexShrink: 0 }} />
+          <div>
+            <h3
+              style={{
+                fontFamily: "var(--font-inter), system-ui, sans-serif",
+                fontSize: 16,
+                fontWeight: 600,
+                color: "var(--color-text)",
+                margin: 0,
+              }}
+            >
+              Book created
+            </h3>
+            <p
+              style={{
+                fontFamily: "var(--font-inter), system-ui, sans-serif",
+                fontSize: 13,
+                color: "var(--color-text-muted)",
+                margin: "4px 0 0",
+              }}
+            >
+              {createdName} is ready. Click Finish to start writing.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div
+          style={{
+            backgroundColor: "var(--color-surface)",
+            borderRadius: 12,
+            border: "1px solid var(--color-border)",
+            padding: 24,
+            display: "flex",
+            flexDirection: "column",
+            gap: 16,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Plus size={18} style={{ color: "var(--color-accent)" }} />
+            <h3
+              style={{
+                fontFamily: "var(--font-inter), system-ui, sans-serif",
+                fontSize: 16,
+                fontWeight: 600,
+                color: "var(--color-text)",
+                margin: 0,
+              }}
+            >
+              Create a New Book
+            </h3>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label
+              style={{
+                fontFamily: "var(--font-inter), system-ui, sans-serif",
+                fontSize: 13,
+                fontWeight: 500,
+                color: "var(--color-text-muted)",
+              }}
+            >
+              Title
+            </label>
+            <input
+              type="text"
+              value={newTitle}
+              onChange={function onTitleChange(e) {
+                setNewTitle(e.target.value);
+              }}
+              onKeyDown={function onKeyDown(e) {
+                if (e.key === "Enter") handleCreateNew();
+              }}
+              placeholder="My Great Novel"
+              style={{
+                fontSize: 14,
+                padding: "10px 14px",
+                borderRadius: 8,
+                border: "1px solid var(--color-border)",
+                backgroundColor: "var(--color-bg)",
+                color: "var(--color-text)",
+                outline: "none",
+                fontFamily: "var(--font-inter), system-ui, sans-serif",
+                transition: "border-color 0.15s",
+              }}
+            />
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label
+              style={{
+                fontFamily: "var(--font-inter), system-ui, sans-serif",
+                fontSize: 13,
+                fontWeight: 500,
+                color: "var(--color-text-muted)",
+              }}
+            >
+              Description (optional)
+            </label>
+            <input
+              type="text"
+              value={newDescription}
+              onChange={function onDescChange(e) {
+                setNewDescription(e.target.value);
+              }}
+              onKeyDown={function onKeyDown(e) {
+                if (e.key === "Enter") handleCreateNew();
+              }}
+              placeholder="A brief description of your book..."
+              style={{
+                fontSize: 14,
+                padding: "10px 14px",
+                borderRadius: 8,
+                border: "1px solid var(--color-border)",
+                backgroundColor: "var(--color-bg)",
+                color: "var(--color-text)",
+                outline: "none",
+                fontFamily: "var(--font-inter), system-ui, sans-serif",
+                transition: "border-color 0.15s",
+              }}
+            />
+          </div>
+
+          {createError && (
+            <span
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                fontFamily: "var(--font-inter), system-ui, sans-serif",
+                fontSize: 13,
+                color: "var(--color-error)",
+              }}
+            >
+              <AlertCircle size={14} />
+              {createError}
+            </span>
+          )}
+
+          <button
+            onClick={handleCreateNew}
+            disabled={!newTitle.trim() || creating}
+            style={{
+              fontFamily: "var(--font-inter), system-ui, sans-serif",
+              fontSize: 14,
+              fontWeight: 500,
+              padding: "10px 24px",
+              borderRadius: 8,
+              border: "none",
+              backgroundColor: !newTitle.trim() ? "var(--color-border)" : "var(--color-accent)",
+              color: "#ffffff",
+              cursor: !newTitle.trim() ? "default" : "pointer",
+              opacity: creating ? 0.7 : 1,
+              transition: "background 150ms ease",
+              alignSelf: "flex-start",
+            }}
+          >
+            {creating ? "Creating..." : "Create Book"}
+          </button>
+        </div>
+      )}
 
       <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
         <div style={{ flex: 1, height: 1, backgroundColor: "var(--color-border)" }} />

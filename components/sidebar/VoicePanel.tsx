@@ -217,105 +217,82 @@ export default function VoicePanel() {
       style={{
         display: "flex",
         flexDirection: "column",
-        height: "100%",
         fontFamily: "var(--font-inter), system-ui, sans-serif",
         fontSize: 12,
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "8px 12px",
-          borderBottom: "1px solid var(--color-border)",
-          flexShrink: 0,
-        }}
-      >
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            color: "var(--color-text-muted)",
-            textTransform: "uppercase",
-            letterSpacing: "0.5px",
-          }}
-        >
-          Voice Guide
-        </span>
-        <div style={{ display: "flex", gap: 4 }}>
-          {!editing ? (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "4px 12px" }}>
+        {!editing ? (
+          <button
+            onClick={handleEdit}
+            title="Edit"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 4,
+              padding: "3px 8px",
+              border: "none",
+              background: "none",
+              color: "var(--color-text-muted)",
+              cursor: "pointer",
+              borderRadius: 4,
+              fontSize: 11,
+              fontFamily: "inherit",
+            }}
+            onMouseEnter={function handleEnter(e) {
+              e.currentTarget.style.backgroundColor = "var(--color-surface-hover)";
+            }}
+            onMouseLeave={function handleLeave(e) {
+              e.currentTarget.style.backgroundColor = "transparent";
+            }}
+          >
+            <Pencil size={12} />
+            Edit
+          </button>
+        ) : (
+          <div style={{ display: "flex", gap: 4 }}>
             <button
-              onClick={handleEdit}
-              title="Edit"
+              onClick={handleCancelEdit}
               style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 4,
+                fontSize: 11,
                 padding: "3px 8px",
-                border: "none",
+                border: "1px solid var(--color-border)",
+                borderRadius: 4,
                 background: "none",
                 color: "var(--color-text-muted)",
                 cursor: "pointer",
-                borderRadius: 4,
-                fontSize: 11,
                 fontFamily: "inherit",
               }}
-              onMouseEnter={function handleEnter(e) {
-                e.currentTarget.style.backgroundColor = "var(--color-surface-hover)";
-              }}
-              onMouseLeave={function handleLeave(e) {
-                e.currentTarget.style.backgroundColor = "transparent";
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                fontSize: 11,
+                padding: "3px 8px",
+                border: "none",
+                borderRadius: 4,
+                backgroundColor: "var(--color-accent)",
+                color: "#fff",
+                cursor: saving ? "default" : "pointer",
+                opacity: saving ? 0.6 : 1,
+                fontFamily: "inherit",
               }}
             >
-              <Pencil size={12} />
-              Edit
+              <Save size={12} />
+              {saving ? "Saving..." : "Save"}
             </button>
-          ) : (
-            <>
-              <button
-                onClick={handleCancelEdit}
-                style={{
-                  fontSize: 11,
-                  padding: "3px 8px",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: 4,
-                  background: "none",
-                  color: "var(--color-text-muted)",
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4,
-                  fontSize: 11,
-                  padding: "3px 8px",
-                  border: "none",
-                  borderRadius: 4,
-                  backgroundColor: "var(--color-accent)",
-                  color: "#fff",
-                  cursor: saving ? "default" : "pointer",
-                  opacity: saving ? 0.6 : 1,
-                  fontFamily: "inherit",
-                }}
-              >
-                <Save size={12} />
-                {saving ? "Saving..." : "Save"}
-              </button>
-            </>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      <div style={{ maxHeight: 500, overflowY: "auto" }}>
         {loading ? (
           <div
             style={{

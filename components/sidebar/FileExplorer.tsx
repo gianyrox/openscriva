@@ -198,8 +198,8 @@ export default function FileExplorer() {
         }
 
         const filePaths = data.tree
-          .filter(function isBlob(item: { type: string }) {
-            return item.type === "blob";
+          .filter(function isBlob(item: { type: string; path: string }) {
+            return item.type === "blob" && !item.path.startsWith(".scriva/");
           })
           .map(function getPath(item: { path: string }) {
             return item.path;
@@ -698,26 +698,8 @@ export default function FileExplorer() {
   const rootInline = inlineInput && inlineInput.parentPath === "" && inlineInput.type !== "rename";
 
   return (
-    <div ref={containerRef} style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "8px 12px 4px",
-        }}
-      >
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
-            color: "var(--color-text-muted)",
-          }}
-        >
-          Explorer
-        </span>
+    <div ref={containerRef} style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "2px 8px" }}>
         <div style={{ display: "flex", gap: 2 }}>
           <button
             onClick={function onNewFile() { handleNewFile(""); }}
@@ -786,7 +768,7 @@ export default function FileExplorer() {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", paddingBottom: 8 }}>
+      <div style={{ overflowY: "auto", overflowX: "hidden", paddingBottom: 8 }}>
         {rootInline && renderInlineInput(0)}
         {tree.map(function renderRoot(node) {
           return renderNode(node, 0);

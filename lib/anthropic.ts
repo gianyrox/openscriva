@@ -1,9 +1,16 @@
 import Anthropic from "@anthropic-ai/sdk";
+import type { ContextBriefing } from "@/types/scriva";
+import { briefingToSystemPrompt } from "@/lib/contextCompiler";
 
 export function buildSystemPrompt(
   contexts: { type: string; content: string }[],
   bookTitle?: string,
+  briefing?: ContextBriefing,
 ): string {
+  if (briefing) {
+    return briefingToSystemPrompt(briefing, bookTitle || "this book");
+  }
+
   const title = bookTitle || "this book";
   let prompt = `You are an AI writing assistant for the book '${title}'. You help with prose, structure, research, and editing. Be direct, specific, and constructive.`;
 

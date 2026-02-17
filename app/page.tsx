@@ -382,6 +382,25 @@ export default function Home() {
             })}
             <GitHubStarButton stars={stars} />
             <a
+              href="/setup"
+              style={{
+                fontFamily: "var(--font-inter), system-ui, sans-serif",
+                fontSize: 13,
+                fontWeight: 500,
+                color: "var(--color-text-muted)",
+                textDecoration: "none",
+                transition: "color 150ms ease",
+              }}
+              onMouseEnter={function hoverOn(e) {
+                e.currentTarget.style.color = "var(--color-text)";
+              }}
+              onMouseLeave={function hoverOff(e) {
+                e.currentTarget.style.color = "var(--color-text-muted)";
+              }}
+            >
+              Log in
+            </a>
+            <a
               href="#get-started"
               style={{
                 fontFamily: "var(--font-inter), system-ui, sans-serif",
@@ -465,6 +484,21 @@ export default function Home() {
             );
           })}
           <GitHubStarButton stars={stars} />
+          <a
+            href="/setup"
+            onClick={function closeMenu() {
+              setMobileMenuOpen(false);
+            }}
+            style={{
+              fontFamily: "var(--font-inter), system-ui, sans-serif",
+              fontSize: 14,
+              fontWeight: 500,
+              color: "var(--color-text-muted)",
+              textDecoration: "none",
+            }}
+          >
+            Log in
+          </a>
           <a
             href="#get-started"
             onClick={function closeMenu() {
@@ -1380,6 +1414,25 @@ export default function Home() {
             gap: 20,
           }}
         >
+          <a
+            href="/setup"
+            style={{
+              fontFamily: "var(--font-inter), system-ui, sans-serif",
+              fontSize: 13,
+              fontWeight: 500,
+              color: "var(--color-text-muted)",
+              textDecoration: "none",
+              transition: "color 150ms ease",
+            }}
+            onMouseEnter={function hoverOn(e) {
+              e.currentTarget.style.color = "var(--color-text)";
+            }}
+            onMouseLeave={function hoverOff(e) {
+              e.currentTarget.style.color = "var(--color-text-muted)";
+            }}
+          >
+            Log in
+          </a>
           <GitHubStarButton stars={stars} />
           <span
             style={{
