@@ -35,3 +35,7 @@ next-env.d.ts
 # waitlist data
 waitlist.json
 .env.local
+
+# Dolt database files (added by bd init)
+.dolt/
+*.db
