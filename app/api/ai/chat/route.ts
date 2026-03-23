@@ -2,14 +2,48 @@ import { NextRequest, NextResponse } from "next/server";
 import { buildSystemPrompt, getModelId } from "@/lib/anthropic";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireAuthKey, withRateLimitHeaders } from "@/lib/auth";
+import { isDemoRequest, getDemoChatResponse } from "@/lib/demo";
 
 export async function POST(request: NextRequest) {
   try {
+    const body = await request.json();
+
+    if (isDemoRequest(body)) {
+      const demoText = getDemoChatResponse(body.mode || "chat");
+      const encoder = new TextEncoder();
+      const words = demoText.split(/(\s+)/);
+
+      const stream = new ReadableStream({
+        async start(controller) {
+          for (let i = 0; i < words.length; i++) {
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({ text: words[i] })}\n\n`),
+            );
+            if (words[i].trim()) {
+              await new Promise(function wait(resolve) {
+                setTimeout(resolve, 30 + Math.random() * 20);
+              });
+            }
+          }
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
+        },
+      });
+
+      return withRateLimitHeaders(
+        new Response(stream, {
+          headers: {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            Connection: "keep-alive",
+          },
+        }),
+      );
+    }
+
     const auth = await requireAuthKey(request);
     if (!auth.ok) return auth.response;
     const apiKey = auth.apiKey;
-
-    const body = await request.json();
 
     if (body.mode === "test") {
       const response = await fetch("https://api.anthropic.com/v1/models", {

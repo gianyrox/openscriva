@@ -57,6 +57,7 @@ export type ModelId = "haiku" | "sonnet" | "opus";
 
 export interface Preferences {
   keysStored: boolean;
+  demoMode: boolean;
   theme: "paper" | "study";
   defaultModel: ModelId;
   autoSave: boolean;

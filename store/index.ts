@@ -81,6 +81,7 @@ export const useAppStore = create<AppState>()(
 
         preferences: {
           keysStored: false,
+          demoMode: false,
           theme: "paper",
           defaultModel: "sonnet",
           autoSave: true,

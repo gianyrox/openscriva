@@ -348,19 +348,26 @@ export default function ChatPanel() {
     return estimateTokens(prompt);
   }
 
+  var isDemo = !preferences.keysStored;
+
   async function streamFromApi(apiMessages: { role: "user" | "assistant"; content: string }[], apiMode: string, onDone: (msgs: ChatMessage[], full: string) => void) {
     var abortController = new AbortController();
     abortRef.current = abortController;
 
     try {
+      var requestBody: Record<string, unknown> = {
+        messages: apiMessages,
+        mode: apiMode,
+        model: model,
+      };
+      if (isDemo) {
+        requestBody.demo = true;
+      }
+
       var res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: apiMessages,
-          mode: apiMode,
-          model: model,
-        }),
+        body: JSON.stringify(requestBody),
         signal: abortController.signal,
       });
 
@@ -414,7 +421,6 @@ export default function ChatPanel() {
 
   async function handleGenerateRevisionPlan() {
     if (revisionNotes.length === 0 || streaming) return;
-    if (!preferences.keysStored) return;
 
     var prompt = buildRevisionPlanPrompt(revisionNotes);
 
@@ -467,7 +473,7 @@ export default function ChatPanel() {
   }
 
   async function handleCritiqueChapter() {
-    if (streaming || !preferences.keysStored || !currentChapter) return;
+    if (streaming || !currentChapter) return;
 
     var userMsg: ChatMessage = {
       id: "msg-" + Date.now(),
@@ -587,7 +593,6 @@ export default function ChatPanel() {
 
     var text = input.trim();
     if (!text || streaming) return;
-    if (!preferences.keysStored) return;
 
     var messageContent = text;
     var apiMode = mode as string;
@@ -831,7 +836,18 @@ export default function ChatPanel() {
   }
 
   function getPlaceholderText(): string {
-    if (!preferences.keysStored) return "Set API key in settings";
+    if (isDemo) {
+      switch (mode) {
+        case "chat":
+          return "Try asking about your story...";
+        case "write":
+          return "Try asking the AI to write or edit...";
+        case "research":
+          return "Try describing what to research...";
+        case "revision":
+          return "Add a revision note...";
+      }
+    }
     switch (mode) {
       case "chat":
         return "Chat about your book...";
@@ -930,6 +946,22 @@ export default function ChatPanel() {
           </button>
         </div>
       </div>
+
+      {isDemo && (
+        <div
+          style={{
+            padding: "6px 12px",
+            borderBottom: "1px solid var(--color-border)",
+            flexShrink: 0,
+            backgroundColor: "color-mix(in srgb, var(--color-accent) 8%, transparent)",
+            fontSize: 11,
+            color: "var(--color-text-muted)",
+            lineHeight: 1.5,
+          }}
+        >
+          Demo mode -- responses are simulated. Add your API key in Settings for real AI.
+        </div>
+      )}
 
       {pendingCount > 0 && mode !== "chat" && (
         <div
@@ -1140,7 +1172,7 @@ export default function ChatPanel() {
             {currentChapter && (
               <button
                 onClick={handleCritiqueChapter}
-                disabled={!preferences.keysStored || streaming}
+                disabled={streaming}
                 title="Get AI critique of current chapter"
                 style={{
                   display: "flex",
@@ -1155,7 +1187,7 @@ export default function ChatPanel() {
                   borderRadius: 8,
                   backgroundColor: "transparent",
                   color: "var(--color-text)",
-                  cursor: preferences.keysStored ? "pointer" : "default",
+                  cursor: "pointer",
                   flexShrink: 0,
                 }}
               >
@@ -1165,7 +1197,7 @@ export default function ChatPanel() {
             )}
             <button
               onClick={handleGenerateRevisionPlan}
-              disabled={!preferences.keysStored}
+              disabled={streaming}
               style={{
                 flex: 1,
                 display: "flex",
@@ -1180,8 +1212,8 @@ export default function ChatPanel() {
                 borderRadius: 8,
                 backgroundColor: "var(--color-accent)",
                 color: "#fff",
-                cursor: preferences.keysStored ? "pointer" : "default",
-                opacity: preferences.keysStored ? 1 : 0.5,
+                cursor: "pointer",
+                opacity: 1,
                 transition: "opacity 150ms",
               }}
             >
@@ -1414,7 +1446,7 @@ export default function ChatPanel() {
             }}
             onKeyDown={handleKeyDown}
             placeholder={getPlaceholderText()}
-            disabled={mode !== "revision" && (!preferences.keysStored || streaming)}
+            disabled={mode !== "revision" && streaming}
             rows={1}
             style={{
               flex: 1,
@@ -1437,7 +1469,7 @@ export default function ChatPanel() {
             disabled={
               mode === "revision"
                 ? !input.trim()
-                : !input.trim() || streaming || !preferences.keysStored
+                : !input.trim() || streaming
             }
             style={{
               display: "flex",
@@ -1454,15 +1486,15 @@ export default function ChatPanel() {
               fontFamily: "inherit",
               fontWeight: 500,
               backgroundColor:
-                (mode === "revision" ? input.trim() : input.trim() && !streaming && preferences.keysStored)
+                (mode === "revision" ? input.trim() : input.trim() && !streaming)
                   ? "var(--color-accent)"
                   : "var(--color-surface-hover)",
               color:
-                (mode === "revision" ? input.trim() : input.trim() && !streaming && preferences.keysStored)
+                (mode === "revision" ? input.trim() : input.trim() && !streaming)
                   ? "#fff"
                   : "var(--color-text-muted)",
               cursor:
-                (mode === "revision" ? input.trim() : input.trim() && !streaming && preferences.keysStored)
+                (mode === "revision" ? input.trim() : input.trim() && !streaming)
                   ? "pointer"
                   : "default",
               flexShrink: 0,

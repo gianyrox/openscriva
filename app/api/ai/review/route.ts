@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { buildSystemPrompt, getModelId } from "@/lib/anthropic";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireAuthKey, withRateLimitHeaders } from "@/lib/auth";
+import { isDemoRequest, getDemoReviewResponse } from "@/lib/demo";
 
 function buildChapterReviewPrompt(): string {
   return `You are a professional book editor providing a structured chapter critique.
@@ -89,11 +90,16 @@ Be honest but constructive. Scores should reflect genuine quality assessment.`;
 
 export async function POST(request: NextRequest) {
   try {
+    const body = await request.json();
+
+    if (isDemoRequest(body)) {
+      const demo = getDemoReviewResponse(body.mode || "chapter");
+      return withRateLimitHeaders(NextResponse.json(demo));
+    }
+
     const auth = await requireAuthKey(request);
     if (!auth.ok) return auth.response;
     const apiKey = auth.apiKey;
-
-    const body = await request.json();
 
     const model: "haiku" | "sonnet" | "opus" = body.model || "sonnet";
     const contexts: { type: string; content: string }[] = body.contexts || [];
