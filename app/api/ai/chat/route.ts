@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildSystemPrompt, getModelId } from "@/lib/anthropic";
 import Anthropic from "@anthropic-ai/sdk";
-import { getAnthropicKey } from "@/lib/keys";
+import { requireAuthKey, withRateLimitHeaders } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const apiKey = await getAnthropicKey(request);
+    const auth = await requireAuthKey(request);
+    if (!auth.ok) return auth.response;
+    const apiKey = auth.apiKey;
 
-    if (!apiKey) {
-      return NextResponse.json({ error: "Missing API key" }, { status: 401 });
-    }
+    const body = await request.json();
 
     if (body.mode === "test") {
       const response = await fetch("https://api.anthropic.com/v1/models", {
@@ -23,7 +22,7 @@ export async function POST(request: NextRequest) {
         const errorData = await response.json();
         throw new Error(errorData.error?.message || "Invalid API key");
       }
-      return NextResponse.json({ success: true });
+      return withRateLimitHeaders(NextResponse.json({ success: true }));
     }
 
     const validModes = ["chat", "write", "research-prompt", "critique", "research", "revision-plan", "revision-critique"];
@@ -114,13 +113,15 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return new Response(stream, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      },
-    });
+    return withRateLimitHeaders(
+      new Response(stream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+        },
+      }),
+    );
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json(

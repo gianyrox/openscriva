@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildSystemPrompt, getModelId } from "@/lib/anthropic";
 import Anthropic from "@anthropic-ai/sdk";
-import { getAnthropicKey } from "@/lib/keys";
+import { requireAuthKey, withRateLimitHeaders } from "@/lib/auth";
 
 function buildChapterReviewPrompt(): string {
   return `You are a professional book editor providing a structured chapter critique.
@@ -89,12 +89,11 @@ Be honest but constructive. Scores should reflect genuine quality assessment.`;
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const apiKey = await getAnthropicKey(request);
+    const auth = await requireAuthKey(request);
+    if (!auth.ok) return auth.response;
+    const apiKey = auth.apiKey;
 
-    if (!apiKey) {
-      return NextResponse.json({ error: "Missing API key" }, { status: 401 });
-    }
+    const body = await request.json();
 
     const model: "haiku" | "sonnet" | "opus" = body.model || "sonnet";
     const contexts: { type: string; content: string }[] = body.contexts || [];
@@ -165,7 +164,7 @@ export async function POST(request: NextRequest) {
     const result =
       response.content[0].type === "text" ? response.content[0].text : "";
 
-    return NextResponse.json({ result });
+    return withRateLimitHeaders(NextResponse.json({ result }));
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });

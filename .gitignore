@@ -23,6 +23,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
+.env
 .env*.local
 
 # vercel
@@ -39,3 +40,5 @@ waitlist.json
 # Dolt database files (added by bd init)
 .dolt/
 *.db
+.nucleus/
+.beads/

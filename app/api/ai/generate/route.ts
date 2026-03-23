@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildSystemPrompt, getModelId } from "@/lib/anthropic";
 import Anthropic from "@anthropic-ai/sdk";
-import { getAnthropicKey } from "@/lib/keys";
+import { requireAuthKey, withRateLimitHeaders } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const apiKey = await getAnthropicKey(request);
+    const auth = await requireAuthKey(request);
+    if (!auth.ok) return auth.response;
+    const apiKey = auth.apiKey;
 
-    if (!apiKey) {
-      return NextResponse.json({ error: "Missing API key" }, { status: 401 });
-    }
+    const body = await request.json();
 
     const model: "haiku" | "sonnet" | "opus" = body.model || "sonnet";
     const contexts: { type: string; content: string }[] = body.contexts || [];
@@ -32,7 +31,7 @@ export async function POST(request: NextRequest) {
       const result =
         response.content[0].type === "text" ? response.content[0].text : "";
 
-      return NextResponse.json({ result });
+      return withRateLimitHeaders(NextResponse.json({ result }));
     }
 
     if (body.mode === "continue") {
@@ -57,7 +56,7 @@ export async function POST(request: NextRequest) {
       const result =
         response.content[0].type === "text" ? response.content[0].text : "";
 
-      return NextResponse.json({ result });
+      return withRateLimitHeaders(NextResponse.json({ result }));
     }
 
     if (body.mode === "draft") {
@@ -79,7 +78,7 @@ export async function POST(request: NextRequest) {
       const result =
         response.content[0].type === "text" ? response.content[0].text : "";
 
-      return NextResponse.json({ result });
+      return withRateLimitHeaders(NextResponse.json({ result }));
     }
 
     if (body.mode === "voice-guide") {
@@ -103,7 +102,7 @@ export async function POST(request: NextRequest) {
       const result =
         response.content[0].type === "text" ? response.content[0].text : "";
 
-      return NextResponse.json({ result });
+      return withRateLimitHeaders(NextResponse.json({ result }));
     }
 
     return NextResponse.json({ error: "Unknown mode: " + body.mode }, { status: 400 });
