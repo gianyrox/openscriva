@@ -188,51 +188,6 @@ export default function ResearchPanel() {
     return { owner: parts[0], repo: parts[1] };
   }
 
-  const fetchFiles = useCallback(function fetchContextFiles() {
-    if (!keysStored || !bookInfo) return;
-
-    setLoading(true);
-    fetch("/api/github/tree?owner=" + bookInfo.owner + "&repo=" + bookInfo.repo + "&branch=main")
-      .then(function handleRes(res) {
-        if (!res.ok) throw new Error("Failed to fetch");
-        return res.json();
-      })
-      .then(function handleData(data) {
-        const tree: string[] = data.tree ?? data;
-        if (Array.isArray(tree)) {
-          const contextFiles = tree
-            .filter(function isContext(p) { return p.startsWith("context/") && !p.endsWith(".gitkeep"); })
-            .map(function toEntry(p) {
-              const name = p.split("/").pop() ?? p;
-              return { name, path: p, type: "file" as const, size: 0 };
-            });
-          setFiles(buildTree(contextFiles));
-        }
-      })
-      .catch(function handleErr() {
-        setFiles([]);
-      })
-      .finally(function done() {
-        setLoading(false);
-      });
-  }, [keysStored, bookInfo?.owner, bookInfo?.repo]);
-
-  useEffect(function loadFiles() {
-    fetchFiles();
-  }, [fetchFiles]);
-
-  useEffect(function handleClickOutside() {
-    function handler(e: MouseEvent) {
-      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
-        setContextMenu(null);
-      }
-    }
-    document.addEventListener("mousedown", handler);
-    return function cleanup() {
-      document.removeEventListener("mousedown", handler);
-    };
-  }, []);
-
   function buildTree(entries: { name: string; path: string; type: string; size?: number; sha?: string }[]): FileEntry[] {
     const dirs: Record<string, FileEntry> = {};
     const topLevel: FileEntry[] = [];
@@ -267,6 +222,51 @@ export default function ResearchPanel() {
 
     return topLevel;
   }
+
+  const fetchFiles = useCallback(function fetchContextFiles() {
+    if (!keysStored || !bookInfo) return;
+
+    setLoading(true);
+    fetch("/api/github/tree?owner=" + bookInfo.owner + "&repo=" + bookInfo.repo + "&branch=main")
+      .then(function handleRes(res) {
+        if (!res.ok) throw new Error("Failed to fetch");
+        return res.json();
+      })
+      .then(function handleData(data) {
+        const tree: string[] = data.tree ?? data;
+        if (Array.isArray(tree)) {
+          const contextFiles = tree
+            .filter(function isContext(p) { return p.startsWith("context/") && !p.endsWith(".gitkeep"); })
+            .map(function toEntry(p) {
+              const name = p.split("/").pop() ?? p;
+              return { name, path: p, type: "file" as const, size: 0 };
+            });
+          setFiles(buildTree(contextFiles));
+        }
+      })
+      .catch(function handleErr() {
+        setFiles([]);
+      })
+      .finally(function done() {
+        setLoading(false);
+      });
+  }, [keysStored, bookInfo]);
+
+  useEffect(function loadFiles() {
+    fetchFiles();
+  }, [fetchFiles]);
+
+  useEffect(function handleClickOutside() {
+    function handler(e: MouseEvent) {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+        setContextMenu(null);
+      }
+    }
+    document.addEventListener("mousedown", handler);
+    return function cleanup() {
+      document.removeEventListener("mousedown", handler);
+    };
+  }, []);
 
   function handleFileClick(entry: FileEntry) {
     if (entry.type === "dir" || !keysStored || !bookInfo) return;
