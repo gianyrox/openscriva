@@ -8,4 +8,5 @@
 {"key":"compact_tier2_dep_levels","value":"5"}
 {"key":"compaction_enabled","value":"false"}
 {"key":"issue_prefix","value":"scriva"}
+{"key":"kv.memory.hosted-nucleus-brain-at-https-nucleus-agfarms-dev","value":"Hosted Nucleus brain at https://nucleus.agfarms.dev (auth: team@agfarms.dev). OpenScriva is venture in AGFarms portfolio with 20 ventures. Brain: 250 nodes, 466 relations, Neo4j, v0.6.8, Hetzner CPX42."}
 {"key":"schema_version","value":"6"}
