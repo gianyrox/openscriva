@@ -1,8 +1,25 @@
-# CLAUDE.md
+# OpenScriva -- Nucleus-Managed Project
 
-## What This Is
+Open-source, AI-native book writing application. Manuscripts live in GitHub repos as markdown files. Tier 1 active product with revenue potential.
 
-Scriva is an open-source, AI-native book writing application. Manuscripts live in GitHub repos as markdown files.
+Part of AGFarms venture studio. Org dashboard: https://nucleus.agfarms.dev/admin
+
+## Nucleus Connection
+
+- **Instance ID**: openscriva
+- **Dashboard**: https://openscriva.nucleus.agfarms.dev/admin
+- **API**: https://openscriva.nucleus.agfarms.dev
+- **Auth**: username=nucleus password=nucleus2026
+- **Bead Prefix**: osv-
+- **Org**: AGFarms (parent: https://nucleus.agfarms.dev)
+
+## Repos
+
+| Repo | Purpose |
+|------|---------|
+| openscriva | Main application (gianyrox GitHub org) |
+
+GitHub: gianyrox (personal). Clone with: `gh repo clone gianyrox/openscriva`
 
 ## Stack
 
@@ -120,6 +137,40 @@ Two themes: Paper (light) and Study (dark). Controlled by `data-theme` attribute
 - **Server components by default** -- only add `"use client"` when React hooks or browser APIs are needed.
 - **API keys never hit the server** -- all AI calls are made client-side with the user's own key.
 
-## Beads (Task Tracking)
+## Bead Tracking
 
-Task tracking uses a hosted Nucleus API, not a local `bd` CLI. See `.nucleus/config.json` for the API URL if present.
+All task tracking uses the hosted Nucleus API. **Always include `-u "nucleus:nucleus2026"` for auth.**
+
+```bash
+# List all beads
+curl -s -u "nucleus:nucleus2026" https://openscriva.nucleus.agfarms.dev/issues | python3 -m json.tool
+
+# Show one bead
+curl -s -u "nucleus:nucleus2026" https://openscriva.nucleus.agfarms.dev/issues/BEAD_ID
+
+# Create a bead
+curl -s -u "nucleus:nucleus2026" -X POST https://openscriva.nucleus.agfarms.dev/issues \
+  -H "Content-Type: application/json" \
+  -d '{"title":"My task","description":"Details","issue_type":"task","priority":2,"parent":"EPIC_ID"}'
+
+# Claim work (set in_progress)
+curl -s -u "nucleus:nucleus2026" -X PATCH "https://openscriva.nucleus.agfarms.dev/issues/BEAD_ID" \
+  -H "Content-Type: application/json" -d '{"status":"in_progress"}'
+
+# Close a bead
+curl -s -u "nucleus:nucleus2026" -X PATCH "https://openscriva.nucleus.agfarms.dev/issues/BEAD_ID?force=true" \
+  -H "Content-Type: application/json" -d '{"status":"closed"}'
+
+# Search brain
+curl -s -u "nucleus:nucleus2026" "https://openscriva.nucleus.agfarms.dev/api/brain/search?q=QUERY"
+
+# Ingest content
+curl -s -u "nucleus:nucleus2026" -X POST https://openscriva.nucleus.agfarms.dev/api/intake/submit \
+  -H "Content-Type: application/json" -d '{"url":"...","title":"...","content":"..."}'
+```
+## Workflow
+
+1. `curl -s -u "nucleus:nucleus2026" https://openscriva.nucleus.agfarms.dev/issues` -- list beads
+2. Claim: `curl -s -u "nucleus:nucleus2026" -X PATCH URL/issues/ID -H "Content-Type: application/json" -d '{"status":"in_progress"}' ` 
+3. Do the work, commit, push
+4. Close: `curl ... -X PATCH URL/issues/ID?force=true -d '{"status":"closed"}' `
