@@ -1,0 +1,180 @@
+export interface Book {
+  title: string;
+  subtitle?: string;
+  author: string;
+  coAuthors?: string[];
+  description?: string;
+  logline?: string;
+  genre?: string;
+  subGenre?: string;
+  themes?: string[];
+  targetAudience?: string;
+  targetWordCount?: number;
+  language?: string;
+  isbn?: string;
+  publisher?: string;
+  coverImage?: string;
+  bookDir: string;
+  contextDir: string;
+  imagesDir?: string;
+  parts: Part[];
+  frontMatter?: import("./scriva").MatterSection[];
+  backMatter?: import("./scriva").MatterSection[];
+}
+
+export interface Part {
+  title: string;
+  chapters: Chapter[];
+}
+
+export interface Chapter {
+  id: string;
+  file: string;
+  label: string;
+}
+
+export interface OutlineNode {
+  id: string;
+  type: "book" | "part" | "chapter" | "section";
+  title: string;
+  synopsis?: string;
+  status: "idea" | "draft" | "revision" | "final";
+  children?: OutlineNode[];
+  file?: string;
+  wordCount?: number;
+}
+
+export interface BookConfig {
+  repo: string;
+  owner: string;
+  branch: string;
+  draftBranch?: string;
+  private?: boolean;
+  projectPath?: string;
+  book: Book;
+}
+
+export interface RoomManifest {
+  version: 1;
+  createdAt: string;
+  upstream: string;
+  projects: RoomProject[];
+}
+
+export interface RoomProject {
+  id: string;
+  container: "books" | "pages";
+  path: string;
+  form: "book" | "page";
+  title: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export type ModelId = "haiku" | "sonnet" | "opus";
+
+export interface Preferences {
+  keysStored: boolean;
+  demoMode: boolean;
+  theme: "paper" | "study";
+  defaultModel: ModelId;
+  autoSave: boolean;
+}
+
+export interface AIEdit {
+  id: string;
+  filePath: string;
+  original: string;
+  suggested: string;
+  status: "pending" | "accepted" | "rejected";
+}
+
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: number;
+  contexts?: ContextRef[];
+}
+
+export interface ContextRef {
+  type:
+    | "chapter"
+    | "character"
+    | "research"
+    | "outline"
+    | "voice"
+    | "selection"
+    | "book"
+    | "world-model"
+    | "narrative"
+    | "rules"
+    | "exemplars"
+    | "briefing";
+  key: string;
+  label: string;
+  tokenCount?: number;
+  full?: boolean;
+}
+
+export interface DiffChange {
+  type: "add" | "remove" | "equal";
+  value: string;
+}
+
+export interface MarginNote {
+  id: string;
+  chapterId: string;
+  from: number;
+  to: number;
+  content: string;
+  author: string;
+  timestamp: number;
+}
+
+export type SaveStatus = "idle" | "saving" | "saved" | "offline" | "error";
+
+export type IndexStatus = "idle" | "indexing" | "indexed" | "error";
+
+export interface EditorState {
+  currentChapter?: string;
+  currentBook?: string;
+  draftBranch?: string;
+  saveStatus: SaveStatus;
+  wordCount: number;
+  isMarkdownView: boolean;
+  isFocusMode: boolean;
+  indexStatus: IndexStatus;
+}
+
+export interface MergeConflict {
+  file: string;
+  sections: ConflictSection[];
+}
+
+export interface ConflictSection {
+  id: string;
+  yours: string;
+  theirs: string;
+  context: string;
+  resolved?: "yours" | "theirs" | "both" | "custom";
+  resolvedContent?: string;
+}
+
+export interface FileTreeNode {
+  name: string;
+  path: string;
+  type: "file" | "dir";
+  children?: FileTreeNode[];
+}
+
+export interface PanelState {
+  leftOpen: boolean;
+  rightOpen: boolean;
+  rightTab: "chat";
+}
+
+export interface VoiceGuide {
+  content: string;
+  generatedFrom?: string[];
+}
