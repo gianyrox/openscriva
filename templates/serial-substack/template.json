@@ -1,0 +1,82 @@
+{
+  "id": "serial-substack",
+  "name": "Serial / Substack-style",
+  "writingType": "nonfiction",
+  "description": "An ongoing series of issues or episodes, with a consistent voice and search across back issues.",
+  "book": {
+    "title": "[Your publication name]",
+    "subtitle": "[The one-line pitch a new subscriber reads.]",
+    "author": "",
+    "genre": "Serial / newsletter",
+    "targetAudience": "[Who subscribes and why.]",
+    "themes": [],
+    "language": "en",
+    "parts": [
+      {
+        "title": "Issues",
+        "chapters": [
+          { "id": "issue-01", "file": "issue-01.md", "label": "Issue 1 — Welcome" },
+          { "id": "issue-02", "file": "issue-02.md", "label": "Issue 2" },
+          { "id": "issue-03", "file": "issue-03.md", "label": "Issue 3" }
+        ]
+      }
+    ]
+  },
+  "scriva": {
+    "features": {
+      "characters": false,
+      "worldBuilding": false,
+      "plotThreads": false,
+      "narrativeState": false,
+      "citations": true,
+      "voiceProfile": true,
+      "chapterSummaries": true,
+      "tensionTracking": false,
+      "revisionTracking": true,
+      "rag": true
+    },
+    "rules": {
+      "tone": ["[your signature tone — this is the whole brand]"],
+      "avoid": ["burying the point", "a slow open", "sounding like everyone else in the niche"],
+      "prefer": ["a strong first line", "one idea per issue", "a clear ask or takeaway at the end"],
+      "povConsistency": "First person",
+      "tenseConsistency": "[Present or past — pick one]",
+      "dialogueStyle": "",
+      "revisionFocus": ["punch up the open", "cut to the point", "keep the voice consistent issue to issue"],
+      "customInstructions": "This is a recurring publication. The voice is the product — keep it consistent across every issue. Each issue stands alone but the series shares running themes; use the index of past issues to stay consistent and avoid repeating yourself."
+    },
+    "citations": [],
+    "world": { "places": [], "timeline": [], "objects": [], "rules": [] },
+    "narrative": {
+      "state": { "currentPoint": "", "readerKnows": [], "readerExpects": [], "dramaticIrony": [] },
+      "promises": [],
+      "threads": [],
+      "tension": []
+    },
+    "voice": {
+      "profile": {
+        "summary": "[Describe your signature voice in a sentence or two — the AI will hold it across every issue.]",
+        "metrics": {
+          "avgSentenceLength": 0,
+          "vocabularyRichness": "",
+          "povStyle": "first person",
+          "dialogueToNarrationRatio": "",
+          "metaphorUsage": "",
+          "paragraphRhythm": "",
+          "tenseUsage": ""
+        },
+        "genreCalibration": "newsletter / serial",
+        "lastUpdated": 0,
+        "analyzedChapters": [],
+        "_override": true
+      },
+      "exemplars": [],
+      "antipatterns": []
+    }
+  },
+  "chapters": [
+    { "id": "issue-01", "file": "issue-01.md", "label": "Issue 1 — Welcome", "content": "# Issue 1 — Welcome\n\nTell a new subscriber what this publication is, what they'll get, and how often. Then deliver something worth reading right now — don't make the first issue only about the publication.\n\n" },
+    { "id": "issue-02", "file": "issue-02.md", "label": "Issue 2", "content": "# Issue 2\n\nOne idea. Open with a line that earns the next line.\n\n" },
+    { "id": "issue-03", "file": "issue-03.md", "label": "Issue 3", "content": "# Issue 3\n\nAnother idea. Keep the voice you set in Issue 1.\n\n" }
+  ]
+}

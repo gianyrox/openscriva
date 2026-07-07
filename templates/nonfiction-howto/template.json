@@ -1,0 +1,110 @@
+{
+  "id": "nonfiction-howto",
+  "name": "Non-fiction / how-to",
+  "writingType": "nonfiction",
+  "description": "A practical guide or manual. Citations and chapter summaries on, clarity-first writing rules.",
+  "book": {
+    "title": "Untitled Guide",
+    "subtitle": "[The promise: what the reader will be able to do after reading.]",
+    "author": "",
+    "genre": "How-to / practical nonfiction",
+    "targetAudience": "[Who this is for and what they already know.]",
+    "themes": [],
+    "targetWordCount": 40000,
+    "language": "en",
+    "frontMatter": [
+      { "type": "introduction", "title": "Introduction", "file": "introduction.md" }
+    ],
+    "parts": [
+      {
+        "title": "Part One — Foundations",
+        "chapters": [
+          { "id": "ch-01", "file": "ch-01.md", "label": "Chapter 1 — The problem" },
+          { "id": "ch-02", "file": "ch-02.md", "label": "Chapter 2 — The core idea" }
+        ]
+      },
+      {
+        "title": "Part Two — Practice",
+        "chapters": [
+          { "id": "ch-03", "file": "ch-03.md", "label": "Chapter 3 — Step by step" },
+          { "id": "ch-04", "file": "ch-04.md", "label": "Chapter 4 — Common mistakes" },
+          { "id": "ch-05", "file": "ch-05.md", "label": "Chapter 5 — Putting it together" }
+        ]
+      }
+    ],
+    "backMatter": [
+      { "type": "bibliography", "title": "References", "file": "references.md" }
+    ]
+  },
+  "scriva": {
+    "features": {
+      "characters": false,
+      "worldBuilding": false,
+      "plotThreads": false,
+      "narrativeState": false,
+      "citations": true,
+      "voiceProfile": true,
+      "chapterSummaries": true,
+      "tensionTracking": false,
+      "revisionTracking": true,
+      "rag": true
+    },
+    "rules": {
+      "tone": ["clear", "direct", "encouraging"],
+      "avoid": ["jargon without a definition", "hedging", "filler", "throat-clearing intros"],
+      "prefer": ["concrete examples", "one idea per section", "active voice", "a takeaway per chapter"],
+      "povConsistency": "Second person (address the reader as \"you\")",
+      "tenseConsistency": "Present tense",
+      "dialogueStyle": "",
+      "revisionFocus": ["cut redundancy", "verify claims against sources", "tighten transitions"],
+      "customInstructions": "This is a practical how-to guide. Every chapter should leave the reader able to do something new. Support factual claims with citations; flag anything that needs a source."
+    },
+    "citations": [
+      {
+        "id": "example-source",
+        "type": "book",
+        "title": "[A source you'll cite]",
+        "authors": ["[Author]"],
+        "year": 2024,
+        "publisher": "[Publisher]",
+        "notes": "[Why this source matters / what claim it supports. Replace or delete.]"
+      }
+    ],
+    "world": { "places": [], "timeline": [], "objects": [], "rules": [] },
+    "narrative": {
+      "state": { "currentPoint": "", "readerKnows": [], "readerExpects": [], "dramaticIrony": [] },
+      "promises": [],
+      "threads": [],
+      "tension": []
+    },
+    "voice": {
+      "profile": {
+        "summary": "[Your target voice — e.g. plain, confident, a knowledgeable friend.]",
+        "metrics": {
+          "avgSentenceLength": 0,
+          "vocabularyRichness": "",
+          "povStyle": "second person",
+          "dialogueToNarrationRatio": "",
+          "metaphorUsage": "",
+          "paragraphRhythm": "",
+          "tenseUsage": "present"
+        },
+        "genreCalibration": "practical nonfiction",
+        "lastUpdated": 0,
+        "analyzedChapters": [],
+        "_override": true
+      },
+      "exemplars": [],
+      "antipatterns": []
+    }
+  },
+  "chapters": [
+    { "id": "introduction", "file": "introduction.md", "label": "Introduction", "content": "# Introduction\n\nState the promise: what the reader will be able to do by the end, and why it's worth their time. Keep it short.\n\n" },
+    { "id": "ch-01", "file": "ch-01.md", "label": "Chapter 1 — The problem", "content": "# Chapter 1 — The problem\n\nName the problem the reader has and why the usual approaches fall short.\n\n" },
+    { "id": "ch-02", "file": "ch-02.md", "label": "Chapter 2 — The core idea", "content": "# Chapter 2 — The core idea\n\nThe one concept the rest of the book builds on. Make it stick with an example.\n\n" },
+    { "id": "ch-03", "file": "ch-03.md", "label": "Chapter 3 — Step by step", "content": "# Chapter 3 — Step by step\n\nWalk through the method. Number the steps; show each one.\n\n" },
+    { "id": "ch-04", "file": "ch-04.md", "label": "Chapter 4 — Common mistakes", "content": "# Chapter 4 — Common mistakes\n\nThe places people go wrong, and how to avoid them.\n\n" },
+    { "id": "ch-05", "file": "ch-05.md", "label": "Chapter 5 — Putting it together", "content": "# Chapter 5 — Putting it together\n\nA worked, end-to-end example that ties the method together.\n\n" },
+    { "id": "references", "file": "references.md", "label": "References", "content": "# References\n\nManaged through the Citations panel. Sources you add there can be listed here.\n\n" }
+  ]
+}
