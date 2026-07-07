@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { X, BookOpen, FileText, Archive, Loader2, Download, ExternalLink } from "lucide-react";
 import posthog from "posthog-js";
 import { useAppStore } from "@/store";
 import { getItem } from "@/lib/storage";
 import { getFileContent } from "@/lib/github";
 import { getChapterPath } from "@/lib/book";
+import { manuscriptToBodyHtml, buildPrintableDocument } from "@/lib/exportHtml";
 import type { BookConfig, Book } from "@/types";
 
 interface PublishPanelProps {
@@ -15,7 +16,7 @@ interface PublishPanelProps {
 }
 
 type ExportFormat = "epub" | "pdf" | "markdown";
-type ExportStatus = "idle" | "loading" | "done" | "error";
+type ExportStatus = "idle" | "loading" | "done" | "error" | "fallback";
 
 interface ExportState {
   epub: ExportStatus;
@@ -87,6 +88,24 @@ function StatusLabel({ status, format }: { status: ExportStatus; format: ExportF
     );
   }
 
+  if (status === "fallback") {
+    return (
+      <span
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          fontSize: 12,
+          color: "var(--color-accent)",
+          fontFamily: "var(--font-inter), system-ui, sans-serif",
+        }}
+      >
+        <ExternalLink size={14} />
+        Opened print dialog — choose &ldquo;Save as PDF&rdquo;
+      </span>
+    );
+  }
+
   if (status === "error") {
     return (
       <span
@@ -104,6 +123,48 @@ function StatusLabel({ status, format }: { status: ExportStatus; format: ExportF
   return null;
 }
 
+// Render a full HTML document into a hidden iframe and open the browser's print
+// dialog. This is the PDF fallback when server-side Puppeteer is unavailable —
+// every browser can "Save as PDF" from print, so the user always gets a PDF.
+function printViaBrowser(fullHtml: string) {
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  document.body.appendChild(iframe);
+
+  function cleanup() {
+    // Give the print dialog time to grab the document before we remove it.
+    window.setTimeout(function remove() {
+      if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+    }, 1000);
+  }
+
+  iframe.onload = function onLoad() {
+    const win = iframe.contentWindow;
+    if (!win) {
+      cleanup();
+      return;
+    }
+    win.focus();
+    win.print();
+    cleanup();
+  };
+
+  const doc = iframe.contentWindow?.document;
+  if (!doc) {
+    if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+    throw new Error("Unable to open a print frame");
+  }
+  doc.open();
+  doc.write(fullHtml);
+  doc.close();
+}
+
 export default function PublishPanel({ open, onClose }: PublishPanelProps) {
   const preferences = useAppStore(function selectPrefs(s) {
     return s.preferences;
@@ -118,6 +179,33 @@ export default function PublishPanel({ open, onClose }: PublishPanelProps) {
     markdown: "idle",
   });
   const [editingImprint, setEditingImprint] = useState(false);
+  const [pdfEngine, setPdfEngine] = useState<"puppeteer" | "browser" | null>(null);
+
+  // Probe the PDF capability when the panel opens so the label tells the truth
+  // about whether the PDF is rendered server-side or via the browser print
+  // dialog. A probe failure just leaves the default description in place.
+  useEffect(
+    function probePdfEngine() {
+      if (!open) return;
+      let cancelled = false;
+      fetch("/api/export/pdf")
+        .then(function parse(r) {
+          return r.json();
+        })
+        .then(function apply(data) {
+          if (!cancelled && (data?.engine === "puppeteer" || data?.engine === "browser")) {
+            setPdfEngine(data.engine);
+          }
+        })
+        .catch(function ignore() {
+          /* leave default description */
+        });
+      return function cleanup() {
+        cancelled = true;
+      };
+    },
+    [open],
+  );
 
   const repoKey = currentBook ?? "local";
   const config = getItem<BookConfig | null>("scriva:config:" + repoKey, null);
@@ -230,72 +318,56 @@ export default function PublishPanel({ open, onClose }: PublishPanelProps) {
 
       const chapters = await fetchAllChapters();
 
-      const htmlParts: string[] = [];
-
-      if (book) {
-        htmlParts.push('<div style="text-align:center;margin-bottom:4rem;">');
-        htmlParts.push('<h1 style="font-size:36px;font-weight:800;">' + book.title + "</h1>");
-        if (book.subtitle) {
-          htmlParts.push(
-            '<p style="font-size:20px;font-style:italic;color:#666;">' + book.subtitle + "</p>",
-          );
-        }
-        htmlParts.push(
-          '<p style="font-size:14px;color:#999;letter-spacing:0.05em;">by ' + book.author + "</p>",
-        );
-        htmlParts.push("</div>");
-      }
-
-      for (let i = 0; i < chapters.length; i++) {
-        const ch = chapters[i];
-        htmlParts.push('<div class="chapter">');
-        htmlParts.push("<h2>" + ch.title + "</h2>");
-        const lines = ch.content.split("\n");
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (trimmed === "") continue;
-          if (trimmed.startsWith("# ")) {
-            htmlParts.push("<h1>" + trimmed.slice(2) + "</h1>");
-          } else if (trimmed.startsWith("## ")) {
-            htmlParts.push("<h2>" + trimmed.slice(3) + "</h2>");
-          } else if (trimmed.startsWith("### ")) {
-            htmlParts.push("<h3>" + trimmed.slice(4) + "</h3>");
-          } else if (trimmed.startsWith("> ")) {
-            htmlParts.push("<blockquote><p>" + trimmed.slice(2) + "</p></blockquote>");
-          } else if (trimmed === "---") {
-            htmlParts.push("<hr />");
-          } else {
-            htmlParts.push("<p>" + trimmed + "</p>");
-          }
-        }
-        htmlParts.push("</div>");
-      }
+      const bodyHtml = manuscriptToBodyHtml(book ?? null, chapters);
 
       const response = await fetch("/api/export/pdf", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ html: htmlParts.join("\n") }),
+        body: JSON.stringify({ html: bodyHtml, title: book?.title }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Export failed");
+      const contentType = response.headers.get("Content-Type") || "";
+
+      // Server rendered a PDF (Puppeteer path): download it.
+      if (contentType.includes("application/pdf")) {
+        const blob = await response.blob();
+        const safeName = (book?.title || "manuscript").replace(/[^a-zA-Z0-9 ]/g, "");
+        downloadBlob(blob, safeName + ".pdf");
+
+        posthog.capture("export_completed", {
+          format: "pdf",
+          book_title: book?.title,
+          chapter_count: chapters.length,
+          engine: "puppeteer",
+        });
+
+        setExportState(function set(s) {
+          return { ...s, pdf: "done" };
+        });
+        return;
       }
 
-      const blob = await response.blob();
-      const safeName = (book?.title || "manuscript").replace(/[^a-zA-Z0-9 ]/g, "");
-      downloadBlob(blob, safeName + ".pdf");
+      const data = await response.json();
 
-      // Track export completed
-      posthog.capture("export_completed", {
-        format: "pdf",
-        book_title: book?.title,
-        chapter_count: chapters.length,
-      });
+      // Graceful degradation: server has no Puppeteer, so render the identical
+      // document via the browser's own print-to-PDF. The user still gets a PDF.
+      if (response.ok && data?.fallback === "browser-print") {
+        printViaBrowser(buildPrintableDocument(bodyHtml, { title: book?.title }));
 
-      setExportState(function set(s) {
-        return { ...s, pdf: "done" };
-      });
+        posthog.capture("export_completed", {
+          format: "pdf",
+          book_title: book?.title,
+          chapter_count: chapters.length,
+          engine: "browser-print",
+        });
+
+        setExportState(function set(s) {
+          return { ...s, pdf: "fallback" };
+        });
+        return;
+      }
+
+      throw new Error(data?.error || "Export failed");
     } catch (err) {
       posthog.captureException(err);
       setExportState(function set(s) {
@@ -376,7 +448,10 @@ export default function PublishPanel({ open, onClose }: PublishPanelProps) {
     {
       format: "pdf",
       title: "PDF",
-      description: "Print-ready manuscript with professional typography",
+      description:
+        pdfEngine === "browser"
+          ? "Print-ready manuscript — opens your browser's print dialog (choose Save as PDF)"
+          : "Print-ready manuscript with professional typography",
       icon: FileText,
       handler: handleExportPdf,
     },
