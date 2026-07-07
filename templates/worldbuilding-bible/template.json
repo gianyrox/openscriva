@@ -1,0 +1,142 @@
+{
+  "id": "worldbuilding-bible",
+  "name": "Worldbuilding bible",
+  "writingType": "fiction",
+  "description": "A reference canon for a world or series — deep world model with places, timeline, objects, and rules.",
+  "book": {
+    "title": "[Your world] — World Bible",
+    "subtitle": "Canon reference",
+    "author": "",
+    "genre": "",
+    "themes": [],
+    "language": "en",
+    "parts": [
+      {
+        "title": "Canon",
+        "chapters": [
+          { "id": "overview", "file": "overview.md", "label": "Overview" },
+          { "id": "geography", "file": "geography.md", "label": "Geography" },
+          { "id": "history", "file": "history.md", "label": "History & timeline" },
+          { "id": "peoples", "file": "peoples.md", "label": "Peoples & factions" },
+          { "id": "systems", "file": "systems.md", "label": "Systems & rules" }
+        ]
+      }
+    ]
+  },
+  "scriva": {
+    "features": {
+      "characters": true,
+      "worldBuilding": true,
+      "plotThreads": false,
+      "narrativeState": false,
+      "voiceProfile": true,
+      "chapterSummaries": true,
+      "tensionTracking": false,
+      "revisionTracking": true,
+      "rag": true,
+      "citations": false
+    },
+    "rules": {
+      "tone": ["reference", "authoritative", "concrete"],
+      "avoid": ["contradicting an established world rule", "vague magic/tech that can do anything"],
+      "prefer": ["internal consistency", "costs and limits on every power or system", "specific names and dates"],
+      "povConsistency": "Encyclopedic — third person, present tense",
+      "tenseConsistency": "Present tense (history entries in past)",
+      "dialogueStyle": "",
+      "revisionFocus": ["check new entries against existing world rules", "flag contradictions"],
+      "customInstructions": "This is a reference bible for a fictional world, not a narrative. Treat the world model (places, timeline, objects, rules) as the source of truth. When asked to invent, stay inside the established rules and note any new fact that should be added to canon. Every system needs a cost and a limit."
+    },
+    "characters": [
+      {
+        "id": "key-figure",
+        "name": "[A key figure]",
+        "aliases": [],
+        "role": "mentioned",
+        "firstAppearance": "peoples",
+        "lastAppearance": "",
+        "alive": true,
+        "description": "[A historically or politically important figure in this world.]",
+        "arc": "",
+        "currentState": "",
+        "traits": [],
+        "relationships": [],
+        "appearances": [],
+        "_override": true
+      }
+    ],
+    "world": {
+      "places": [
+        {
+          "id": "capital",
+          "name": "[The central place]",
+          "description": "[What it is and what it looks like.]",
+          "significance": "[Why it anchors the world.]",
+          "chapters": ["geography"],
+          "_override": true
+        }
+      ],
+      "timeline": [
+        {
+          "id": "founding",
+          "event": "[The founding / origin event of the world's era.]",
+          "chapter": "history",
+          "characters": [],
+          "significance": "[Why everything after dates from here.]",
+          "storyTime": "[Year 0 / the era name]",
+          "_override": true
+        }
+      ],
+      "objects": [
+        {
+          "id": "artifact",
+          "name": "[A significant object]",
+          "description": "[What it is.]",
+          "significance": "[What it means / does in the world.]",
+          "chapters": ["systems"],
+          "_override": true
+        }
+      ],
+      "rules": [
+        {
+          "id": "core-rule",
+          "rule": "[A hard rule of how this world works — the load-bearing law of its magic, tech, politics, or physics.]",
+          "domain": "[magic / technology / society / physics]",
+          "_override": true
+        }
+      ]
+    },
+    "narrative": {
+      "state": { "currentPoint": "", "readerKnows": [], "readerExpects": [], "dramaticIrony": [] },
+      "promises": [],
+      "threads": [],
+      "tension": []
+    },
+    "voice": {
+      "profile": {
+        "summary": "Encyclopedic reference voice — authoritative and concrete.",
+        "metrics": {
+          "avgSentenceLength": 0,
+          "vocabularyRichness": "",
+          "povStyle": "encyclopedic third person",
+          "dialogueToNarrationRatio": "",
+          "metaphorUsage": "",
+          "paragraphRhythm": "",
+          "tenseUsage": "present"
+        },
+        "genreCalibration": "reference / worldbuilding",
+        "lastUpdated": 0,
+        "analyzedChapters": [],
+        "_override": true
+      },
+      "exemplars": [],
+      "antipatterns": []
+    }
+  },
+  "chapters": [
+    { "id": "overview", "file": "overview.md", "label": "Overview", "content": "# Overview\n\nThe one-paragraph pitch of this world: its era, its central tension, what makes it itself.\n\n" },
+    { "id": "geography", "file": "geography.md", "label": "Geography", "content": "# Geography\n\nThe places that matter. Add each as an entry in the World panel so the AI treats it as canon.\n\n" },
+    { "id": "history", "file": "history.md", "label": "History & timeline", "content": "# History & timeline\n\nThe events that shaped the present. Add each as a timeline entry in the World panel.\n\n" },
+    { "id": "peoples", "file": "peoples.md", "label": "Peoples & factions", "content": "# Peoples & factions\n\nThe groups, cultures, and powers, and how they relate.\n\n" },
+    { "id": "systems", "file": "systems.md", "label": "Systems & rules", "content": "# Systems & rules\n\nHow the world works — magic, technology, economy, law. Every system gets a cost and a limit. Add the hard rules to the World panel's rules so the AI never breaks them.\n\n" }
+  ]
+}

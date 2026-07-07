@@ -1,0 +1,132 @@
+{
+  "id": "screenplay",
+  "name": "Screenplay / script",
+  "writingType": "custom",
+  "description": "A film, TV, or stage script in prose-markdown format, with characters and scene structure.",
+  "book": {
+    "title": "Untitled Script",
+    "subtitle": "[Format: Feature / TV pilot / Stage play]",
+    "author": "",
+    "genre": "",
+    "logline": "[One sentence: protagonist, goal, obstacle.]",
+    "themes": [],
+    "language": "en",
+    "parts": [
+      {
+        "title": "Act I",
+        "chapters": [
+          { "id": "scene-01", "file": "scene-01.md", "label": "Scene 1 — Open" },
+          { "id": "scene-02", "file": "scene-02.md", "label": "Scene 2 — Inciting incident" }
+        ]
+      },
+      {
+        "title": "Act II",
+        "chapters": [
+          { "id": "scene-03", "file": "scene-03.md", "label": "Scene 3 — Complication" },
+          { "id": "scene-04", "file": "scene-04.md", "label": "Scene 4 — Midpoint" },
+          { "id": "scene-05", "file": "scene-05.md", "label": "Scene 5 — Low point" }
+        ]
+      },
+      {
+        "title": "Act III",
+        "chapters": [
+          { "id": "scene-06", "file": "scene-06.md", "label": "Scene 6 — Climax" },
+          { "id": "scene-07", "file": "scene-07.md", "label": "Scene 7 — Resolution" }
+        ]
+      }
+    ]
+  },
+  "scriva": {
+    "features": {
+      "characters": true,
+      "worldBuilding": false,
+      "plotThreads": true,
+      "narrativeState": true,
+      "voiceProfile": true,
+      "chapterSummaries": true,
+      "tensionTracking": false,
+      "revisionTracking": true,
+      "rag": true,
+      "citations": false
+    },
+    "rules": {
+      "tone": ["[the film's tone — e.g. deadpan / tense / warm]"],
+      "avoid": ["camera directions unless essential", "on-the-nose dialogue", "novelistic interiority (we can't film a thought)"],
+      "prefer": ["action described in the present tense", "dialogue that reveals character", "white space"],
+      "povConsistency": "Objective — we only see and hear what the camera does",
+      "tenseConsistency": "Present tense",
+      "dialogueStyle": "Each character has a distinct rhythm and vocabulary; keep lines lean",
+      "revisionFocus": ["cut anything unfilmable", "sharpen dialogue", "check each scene has a turn"],
+      "customInstructions": "This is a script written in markdown. Convention for this room: a scene heading is an H2 slugline like \"## INT. KITCHEN — NIGHT\"; character cues are bold (e.g. **MAYA**) with dialogue on the next line; action lines are plain present-tense paragraphs. The editor is prose-markdown, so treat this as a formatting convention, not industry-standard screenplay software. Keep dialogue and action visual and filmable."
+    },
+    "characters": [
+      {
+        "id": "lead",
+        "name": "[Lead]",
+        "aliases": [],
+        "role": "protagonist",
+        "firstAppearance": "scene-01",
+        "lastAppearance": "",
+        "alive": true,
+        "description": "[Who they are and what they want in this story.]",
+        "arc": "[What changes for them by the last scene.]",
+        "currentState": "",
+        "traits": [],
+        "relationships": [],
+        "appearances": [],
+        "_override": true
+      }
+    ],
+    "world": { "places": [], "timeline": [], "objects": [], "rules": [] },
+    "narrative": {
+      "state": {
+        "currentPoint": "[Open on the first scene.]",
+        "readerKnows": [],
+        "readerExpects": [],
+        "dramaticIrony": [],
+        "_override": true
+      },
+      "promises": [],
+      "threads": [
+        {
+          "id": "a-story",
+          "name": "[A-story]",
+          "status": "open",
+          "chapters": ["scene-01"],
+          "summary": "[The main dramatic line the script follows.]",
+          "_override": true
+        }
+      ],
+      "tension": []
+    },
+    "voice": {
+      "profile": {
+        "summary": "[The script's voice — how the action lines read, how the dialogue sounds.]",
+        "metrics": {
+          "avgSentenceLength": 0,
+          "vocabularyRichness": "",
+          "povStyle": "objective / cinematic",
+          "dialogueToNarrationRatio": "",
+          "metaphorUsage": "",
+          "paragraphRhythm": "",
+          "tenseUsage": "present"
+        },
+        "genreCalibration": "screenwriting",
+        "lastUpdated": 0,
+        "analyzedChapters": [],
+        "_override": true
+      },
+      "exemplars": [],
+      "antipatterns": []
+    }
+  },
+  "chapters": [
+    { "id": "scene-01", "file": "scene-01.md", "label": "Scene 1 — Open", "content": "## INT. LOCATION — DAY\n\nAction lines go here, in present tense, describing only what the camera can see.\n\n**CHARACTER**\nDialogue on the line under the character cue.\n\n" },
+    { "id": "scene-02", "file": "scene-02.md", "label": "Scene 2 — Inciting incident", "content": "## EXT. LOCATION — NIGHT\n\nThe event that kicks the story into motion.\n\n" },
+    { "id": "scene-03", "file": "scene-03.md", "label": "Scene 3 — Complication", "content": "## INT. LOCATION — DAY\n\nThe first real obstacle.\n\n" },
+    { "id": "scene-04", "file": "scene-04.md", "label": "Scene 4 — Midpoint", "content": "## INT. LOCATION — DAY\n\nA reversal that changes the stakes.\n\n" },
+    { "id": "scene-05", "file": "scene-05.md", "label": "Scene 5 — Low point", "content": "## EXT. LOCATION — NIGHT\n\nThe lead is furthest from the goal.\n\n" },
+    { "id": "scene-06", "file": "scene-06.md", "label": "Scene 6 — Climax", "content": "## INT. LOCATION — NIGHT\n\nThe confrontation the script has built toward.\n\n" },
+    { "id": "scene-07", "file": "scene-07.md", "label": "Scene 7 — Resolution", "content": "## EXT. LOCATION — DAY\n\nThe new normal. Show the change.\n\n" }
+  ]
+}

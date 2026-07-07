@@ -145,7 +145,11 @@ export default function SetupWizard() {
     if (step === 0) return githubValid;
     if (step === 1) return apiKeyValid;
     if (step === 2) return true;
-    if (step === 3) return true;
+    if (step === 3) {
+      // A chosen template option needs an actual template picked before Finish.
+      if (firstMove.kind === "template") return Boolean(firstMove.templateId);
+      return true;
+    }
     return false;
   }
 
@@ -185,12 +189,66 @@ export default function SetupWizard() {
       first_move: firstMove.kind,
       writing_type: writingType,
       is_returning: isReturningUser,
+      template_id: firstMove.templateId ?? null,
     });
 
     if (firstMove.kind === "skip") {
       setFinishing(false);
       router.push("/shelf");
       return;
+    }
+
+    if (firstMove.kind === "template" && firstMove.templateId) {
+      try {
+        const res = await fetch("/api/github/room/books", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ templateId: firstMove.templateId }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(function fallback() {
+            return { error: "Failed to create from template" };
+          });
+          throw new Error(err.error || "Failed to create from template");
+        }
+        const data = await res.json();
+
+        const fullName = data.full_name as string;
+        const bookData = {
+          name: data.title,
+          full_name: fullName,
+          description: data.description,
+          private: true,
+          default_branch: data.default_branch,
+          updated_at: data.updated_at,
+        };
+        localStorage.setItem("scriva-current-book", JSON.stringify(bookData));
+        setBook(fullName);
+        setDraftBranch(undefined);
+
+        const [owner, repoName] = fullName.split("/");
+        // The route returns the full book skeleton (real parts/chapters from the
+        // template), so build the config straight from it.
+        const config: BookConfig = {
+          owner,
+          repo: repoName,
+          branch: data.default_branch,
+          private: true,
+          projectPath: data.projectPath,
+          book: {
+            ...data.book,
+            author: owner,
+          },
+        };
+        saveBookConfig(config);
+        setFinishing(false);
+        router.push("/book");
+        return;
+      } catch (err) {
+        setFinishError(err instanceof Error ? err.message : "Failed to create from template");
+        setFinishing(false);
+        return;
+      }
     }
 
     if (firstMove.kind === "book") {

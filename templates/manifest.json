@@ -1,0 +1,47 @@
+{
+  "version": "1.0.0",
+  "templates": [
+    {
+      "id": "novel-3-act",
+      "name": "Novel (3-act)",
+      "writingType": "fiction",
+      "description": "A full-length novel in a classic three-act structure, with characters, plot threads, and voice pre-scaffolded.",
+      "path": "templates/novel-3-act/template.json"
+    },
+    {
+      "id": "short-story",
+      "name": "Short story",
+      "writingType": "fiction",
+      "description": "One self-contained story. A single protagonist, one dramatic thread, tight voice rules.",
+      "path": "templates/short-story/template.json"
+    },
+    {
+      "id": "nonfiction-howto",
+      "name": "Non-fiction / how-to",
+      "writingType": "nonfiction",
+      "description": "A practical guide or manual. Citations and chapter summaries on, clarity-first writing rules.",
+      "path": "templates/nonfiction-howto/template.json"
+    },
+    {
+      "id": "serial-substack",
+      "name": "Serial / Substack-style",
+      "writingType": "nonfiction",
+      "description": "An ongoing series of issues or episodes, with a consistent voice and search across back issues.",
+      "path": "templates/serial-substack/template.json"
+    },
+    {
+      "id": "screenplay",
+      "name": "Screenplay / script",
+      "writingType": "custom",
+      "description": "A film, TV, or stage script in prose-markdown format, with characters and scene structure.",
+      "path": "templates/screenplay/template.json"
+    },
+    {
+      "id": "worldbuilding-bible",
+      "name": "Worldbuilding bible",
+      "writingType": "fiction",
+      "description": "A reference canon for a world or series — deep world model with places, timeline, objects, and rules.",
+      "path": "templates/worldbuilding-bible/template.json"
+    }
+  ]
+}

@@ -1,0 +1,119 @@
+{
+  "id": "short-story",
+  "name": "Short story",
+  "writingType": "fiction",
+  "description": "One self-contained story. A single protagonist, one dramatic thread, tight voice rules.",
+  "book": {
+    "title": "Untitled Story",
+    "author": "",
+    "genre": "",
+    "logline": "[One sentence: the character, the moment, the change.]",
+    "themes": [],
+    "targetWordCount": 5000,
+    "language": "en",
+    "parts": [
+      {
+        "title": "Story",
+        "chapters": [
+          { "id": "scene-01", "file": "scene-01.md", "label": "Opening" },
+          { "id": "scene-02", "file": "scene-02.md", "label": "Turn" },
+          { "id": "scene-03", "file": "scene-03.md", "label": "Close" }
+        ]
+      }
+    ]
+  },
+  "scriva": {
+    "features": {
+      "characters": true,
+      "worldBuilding": false,
+      "plotThreads": true,
+      "narrativeState": true,
+      "voiceProfile": true,
+      "chapterSummaries": false,
+      "tensionTracking": false,
+      "revisionTracking": true,
+      "rag": true,
+      "citations": false
+    },
+    "rules": {
+      "tone": ["[pick one dominant tone and hold it]"],
+      "avoid": ["backstory dumps", "more than one POV", "an ending that explains itself"],
+      "prefer": ["a single vivid image", "economy", "an ending that lands on a turn"],
+      "povConsistency": "[Single POV — first or close third]",
+      "tenseConsistency": "[Past or present — pick one]",
+      "dialogueStyle": "[Sparse; every line earns its place]",
+      "revisionFocus": ["cut anything that doesn't turn the story", "sharpen the last line"],
+      "customInstructions": "This is a short story. One protagonist, one change, one sitting. Protect economy — resist adding characters or subplots."
+    },
+    "characters": [
+      {
+        "id": "protagonist",
+        "name": "[Your protagonist]",
+        "aliases": [],
+        "role": "protagonist",
+        "firstAppearance": "scene-01",
+        "lastAppearance": "",
+        "alive": true,
+        "description": "[Who they are, in two or three sentences.]",
+        "arc": "[The small but real change the story turns on.]",
+        "currentState": "",
+        "traits": [],
+        "relationships": [],
+        "appearances": [],
+        "_override": true
+      }
+    ],
+    "world": {
+      "places": [],
+      "timeline": [],
+      "objects": [],
+      "rules": []
+    },
+    "narrative": {
+      "state": {
+        "currentPoint": "[The reader is at the opening image.]",
+        "readerKnows": [],
+        "readerExpects": [],
+        "dramaticIrony": [],
+        "_override": true
+      },
+      "promises": [],
+      "threads": [
+        {
+          "id": "the-turn",
+          "name": "[The one thread]",
+          "status": "open",
+          "chapters": ["scene-01"],
+          "summary": "[The single tension the story builds and resolves.]",
+          "_override": true
+        }
+      ],
+      "tension": []
+    },
+    "voice": {
+      "profile": {
+        "summary": "[Describe your target voice, or let it fill in as you write.]",
+        "metrics": {
+          "avgSentenceLength": 0,
+          "vocabularyRichness": "",
+          "povStyle": "",
+          "dialogueToNarrationRatio": "",
+          "metaphorUsage": "",
+          "paragraphRhythm": "",
+          "tenseUsage": ""
+        },
+        "genreCalibration": "",
+        "lastUpdated": 0,
+        "analyzedChapters": [],
+        "_override": true
+      },
+      "exemplars": [],
+      "antipatterns": []
+    }
+  },
+  "chapters": [
+    { "id": "scene-01", "file": "scene-01.md", "label": "Opening", "content": "# Opening\n\nDrop the reader into the moment. Establish the character and the tension in as few lines as you can.\n\n" },
+    { "id": "scene-02", "file": "scene-02.md", "label": "Turn", "content": "# Turn\n\nThe pressure builds to the point where something has to give.\n\n" },
+    { "id": "scene-03", "file": "scene-03.md", "label": "Close", "content": "# Close\n\nThe change lands. End on the turn, not on the explanation.\n\n" }
+  ]
+}

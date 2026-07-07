@@ -1,0 +1,193 @@
+{
+  "id": "novel-3-act",
+  "name": "Novel (3-act)",
+  "writingType": "fiction",
+  "description": "A full-length novel in a classic three-act structure, with characters, plot threads, and voice pre-scaffolded.",
+  "book": {
+    "title": "Untitled Novel",
+    "author": "",
+    "genre": "",
+    "logline": "[One sentence: who wants what, and what stands in the way.]",
+    "themes": [],
+    "targetWordCount": 90000,
+    "language": "en",
+    "parts": [
+      {
+        "title": "Act I — Setup",
+        "chapters": [
+          { "id": "ch-01", "file": "ch-01.md", "label": "Chapter 1 — Ordinary world" },
+          { "id": "ch-02", "file": "ch-02.md", "label": "Chapter 2 — Inciting incident" },
+          { "id": "ch-03", "file": "ch-03.md", "label": "Chapter 3 — The choice" }
+        ]
+      },
+      {
+        "title": "Act II — Confrontation",
+        "chapters": [
+          { "id": "ch-04", "file": "ch-04.md", "label": "Chapter 4 — New world" },
+          { "id": "ch-05", "file": "ch-05.md", "label": "Chapter 5 — Rising stakes" },
+          { "id": "ch-06", "file": "ch-06.md", "label": "Chapter 6 — Midpoint turn" },
+          { "id": "ch-07", "file": "ch-07.md", "label": "Chapter 7 — Things fall apart" },
+          { "id": "ch-08", "file": "ch-08.md", "label": "Chapter 8 — All is lost" }
+        ]
+      },
+      {
+        "title": "Act III — Resolution",
+        "chapters": [
+          { "id": "ch-09", "file": "ch-09.md", "label": "Chapter 9 — The climax" },
+          { "id": "ch-10", "file": "ch-10.md", "label": "Chapter 10 — Resolution" }
+        ]
+      }
+    ]
+  },
+  "scriva": {
+    "features": {
+      "characters": true,
+      "worldBuilding": true,
+      "plotThreads": true,
+      "narrativeState": true,
+      "voiceProfile": true,
+      "chapterSummaries": true,
+      "tensionTracking": true,
+      "revisionTracking": true,
+      "rag": true,
+      "citations": false
+    },
+    "rules": {
+      "tone": ["[e.g. wry", "grounded", "intimate]"],
+      "avoid": ["clichés", "head-hopping within a scene", "info-dumps"],
+      "prefer": ["concrete sensory detail", "showing over telling"],
+      "povConsistency": "[Third-person limited — pick one and hold it]",
+      "tenseConsistency": "Past tense",
+      "dialogueStyle": "[Naturalistic; distinct voices per character]",
+      "revisionFocus": ["pacing", "continuity", "voice consistency"],
+      "customInstructions": "This is a three-act novel. Keep the protagonist's want and need in view. Honor established character facts and the world rules."
+    },
+    "characters": [
+      {
+        "id": "protagonist",
+        "name": "[Your protagonist]",
+        "aliases": [],
+        "role": "protagonist",
+        "firstAppearance": "ch-01",
+        "lastAppearance": "",
+        "alive": true,
+        "description": "[One paragraph: who they are at the start.]",
+        "arc": "[What changes in them across the three acts.]",
+        "currentState": "[Where they are as of the last written chapter.]",
+        "traits": [],
+        "relationships": [
+          {
+            "target": "antagonist",
+            "type": "[e.g. rival / nemesis]",
+            "evolution": "[How this relationship shifts across the book.]",
+            "currentState": "[Where it stands now.]"
+          }
+        ],
+        "appearances": [],
+        "_override": true
+      },
+      {
+        "id": "antagonist",
+        "name": "[Your antagonist]",
+        "aliases": [],
+        "role": "antagonist",
+        "firstAppearance": "ch-02",
+        "lastAppearance": "",
+        "alive": true,
+        "description": "[One paragraph: what they want and why it collides with the protagonist.]",
+        "arc": "[Their trajectory across the book.]",
+        "currentState": "[Where they are as of the last written chapter.]",
+        "traits": [],
+        "relationships": [],
+        "appearances": [],
+        "_override": true
+      }
+    ],
+    "world": {
+      "places": [
+        {
+          "id": "primary-setting",
+          "name": "[Primary setting]",
+          "description": "[Where most of the story happens.]",
+          "significance": "[Why this place matters to the story.]",
+          "chapters": [],
+          "_override": true
+        }
+      ],
+      "timeline": [],
+      "objects": [],
+      "rules": []
+    },
+    "narrative": {
+      "state": {
+        "currentPoint": "[The reader is at the very start — nothing established yet.]",
+        "readerKnows": [],
+        "readerExpects": [],
+        "dramaticIrony": [],
+        "_override": true
+      },
+      "promises": [
+        {
+          "id": "central-question",
+          "setup": "[The dramatic question the opening raises — the thing the reader needs answered.]",
+          "setupChapter": "ch-02",
+          "payoffChapter": "ch-09",
+          "status": "planted",
+          "urgency": "high",
+          "_override": true
+        }
+      ],
+      "threads": [
+        {
+          "id": "main-thread",
+          "name": "[Main plot]",
+          "status": "open",
+          "chapters": ["ch-01"],
+          "summary": "[The external story: the protagonist's pursuit of the concrete goal.]",
+          "_override": true
+        },
+        {
+          "id": "subplot-a",
+          "name": "[Subplot / relationship line]",
+          "status": "open",
+          "chapters": [],
+          "summary": "[A secondary line — often a relationship or the internal change.]",
+          "_override": true
+        }
+      ],
+      "tension": []
+    },
+    "voice": {
+      "profile": {
+        "summary": "[Filled in automatically as you write, or describe your target voice here.]",
+        "metrics": {
+          "avgSentenceLength": 0,
+          "vocabularyRichness": "",
+          "povStyle": "third-person limited",
+          "dialogueToNarrationRatio": "",
+          "metaphorUsage": "",
+          "paragraphRhythm": "",
+          "tenseUsage": "past"
+        },
+        "genreCalibration": "[Your genre — the AI calibrates voice to it.]",
+        "lastUpdated": 0,
+        "analyzedChapters": [],
+        "_override": true
+      },
+      "exemplars": [],
+      "antipatterns": []
+    }
+  },
+  "chapters": [
+    { "id": "ch-01", "file": "ch-01.md", "label": "Chapter 1 — Ordinary world", "content": "# Chapter 1 — Ordinary world\n\nOpen in the protagonist's normal life. Show what they want and what's missing before anything changes.\n\n" },
+    { "id": "ch-02", "file": "ch-02.md", "label": "Chapter 2 — Inciting incident", "content": "# Chapter 2 — Inciting incident\n\nThe event that disrupts the ordinary world and sets the story in motion.\n\n" },
+    { "id": "ch-03", "file": "ch-03.md", "label": "Chapter 3 — The choice", "content": "# Chapter 3 — The choice\n\nThe protagonist commits. The door to Act II closes behind them.\n\n" },
+    { "id": "ch-04", "file": "ch-04.md", "label": "Chapter 4 — New world", "content": "# Chapter 4 — New world\n\nNew rules, new allies, new pressure.\n\n" },
+    { "id": "ch-05", "file": "ch-05.md", "label": "Chapter 5 — Rising stakes", "content": "# Chapter 5 — Rising stakes\n\nThings get harder. Early wins, early costs.\n\n" },
+    { "id": "ch-06", "file": "ch-06.md", "label": "Chapter 6 — Midpoint turn", "content": "# Chapter 6 — Midpoint turn\n\nA reversal or revelation that changes what the story is about.\n\n" },
+    { "id": "ch-07", "file": "ch-07.md", "label": "Chapter 7 — Things fall apart", "content": "# Chapter 7 — Things fall apart\n\nThe pressure compounds; plans break.\n\n" },
+    { "id": "ch-08", "file": "ch-08.md", "label": "Chapter 8 — All is lost", "content": "# Chapter 8 — All is lost\n\nThe low point. The protagonist confronts what they've been avoiding.\n\n" },
+    { "id": "ch-09", "file": "ch-09.md", "label": "Chapter 9 — The climax", "content": "# Chapter 9 — The climax\n\nThe confrontation the whole book has promised. The central question is answered.\n\n" },
+    { "id": "ch-10", "file": "ch-10.md", "label": "Chapter 10 — Resolution", "content": "# Chapter 10 — Resolution\n\nThe new normal. Show how the protagonist has changed.\n\n" }
+  ]
+}
