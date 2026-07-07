@@ -7,12 +7,15 @@ import {
   Feather,
   NotebookPen,
   Sparkles,
+  LayoutTemplate,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import manifest from "@/templates/manifest.json";
 
 export type FirstMoveKind =
   | "blank-page"
   | "book"
+  | "template"
   | "essay"
   | "poem"
   | "journal"
@@ -21,7 +24,20 @@ export type FirstMoveKind =
 export interface FirstMove {
   kind: FirstMoveKind;
   title?: string;
+  // Set only when kind === "template" — the id from templates/manifest.json.
+  templateId?: string;
 }
+
+interface TemplateShelfEntry {
+  id: string;
+  name: string;
+  writingType: string;
+  description: string;
+}
+
+const TEMPLATES: TemplateShelfEntry[] = (
+  manifest as { templates: TemplateShelfEntry[] }
+).templates;
 
 interface FirstMoveStepProps {
   value: FirstMove;
@@ -47,6 +63,12 @@ const OPTIONS: MoveOption[] = [
     icon: BookOpen,
     label: "A book",
     description: "Long-form, multiple chapters.",
+  },
+  {
+    kind: "template",
+    icon: LayoutTemplate,
+    label: "Start from a template",
+    description: "A pre-scaffolded mind and chapter skeleton for a form.",
   },
   {
     kind: "essay",
@@ -78,6 +100,10 @@ export default function FirstMoveStep(props: FirstMoveStepProps) {
   function handleSelect(kind: FirstMoveKind) {
     if (kind === "book") {
       props.onChange({ kind, title: props.value.title ?? "" });
+    } else if (kind === "template") {
+      // Keep any previously picked template so re-selecting the option doesn't
+      // clear the choice.
+      props.onChange({ kind, templateId: props.value.templateId });
     } else {
       props.onChange({ kind });
     }
@@ -85,6 +111,10 @@ export default function FirstMoveStep(props: FirstMoveStepProps) {
 
   function handleTitleChange(e: React.ChangeEvent<HTMLInputElement>) {
     props.onChange({ kind: "book", title: e.target.value });
+  }
+
+  function handleTemplatePick(templateId: string) {
+    props.onChange({ kind: "template", templateId });
   }
 
   return (
@@ -206,6 +236,69 @@ export default function FirstMoveStep(props: FirstMoveStepProps) {
                       transition: "border-color 0.15s",
                     }}
                   />
+                </div>
+              )}
+
+              {opt.kind === "template" && isSelected && (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "6px",
+                    padding: "12px 16px 4px 46px",
+                  }}
+                >
+                  {TEMPLATES.map(function renderTemplate(tpl) {
+                    const isTemplateSelected = props.value.templateId === tpl.id;
+                    return (
+                      <button
+                        key={tpl.id}
+                        type="button"
+                        onClick={function pick() {
+                          handleTemplatePick(tpl.id);
+                        }}
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "2px",
+                          padding: "10px 12px",
+                          textAlign: "left",
+                          backgroundColor: isTemplateSelected
+                            ? "var(--color-surface)"
+                            : "var(--color-bg)",
+                          border: isTemplateSelected
+                            ? "1.5px solid var(--color-accent)"
+                            : "1px solid var(--color-border)",
+                          borderRadius: "8px",
+                          cursor: "pointer",
+                          transition: "all 0.15s",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontFamily: "var(--font-inter), system-ui, sans-serif",
+                            fontSize: "13px",
+                            fontWeight: 500,
+                            color: isTemplateSelected
+                              ? "var(--color-accent)"
+                              : "var(--color-text)",
+                          }}
+                        >
+                          {tpl.name}
+                        </span>
+                        <span
+                          style={{
+                            fontFamily: "var(--font-inter), system-ui, sans-serif",
+                            fontSize: "12px",
+                            color: "var(--color-text-muted)",
+                            lineHeight: 1.4,
+                          }}
+                        >
+                          {tpl.description}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
